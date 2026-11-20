@@ -7,10 +7,13 @@ rust-version.workspace = true
 
 [dependencies]
 aero-core = { path = "../core" }
+anyhow.workspace = true
+bytes = "1"
 freya = { version = "=0.5.3", features = ["sdk-tokio", "titlebar", "borderless"] }
 tokio.workspace = true
 tokio-util.workspace = true
 serde_json.workspace = true
+reqwest.workspace = true
 
 [package.metadata.packager]
 product-name = "Aero Client"

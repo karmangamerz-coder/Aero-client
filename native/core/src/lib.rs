@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: MIT
+pub mod auth;
 pub mod content;
+pub mod hardware;
 pub mod install;
+pub mod launch;
 pub mod net;
+pub mod onboarding;
 pub mod runtime;
+pub mod skin;
 pub mod storage;
 #[cfg(test)]
 mod tests;
+pub use auth::{Account, Accounts};
+pub use hardware::{Hardware, Performance};
 pub use install::Installer;
+pub use launch::{LaunchSpec, Outcome};
 pub use net::{Artifact, DownloadClient, Progress};
 pub use storage::{Instance, Loader, Settings, Store};
 pub use tokio_util::sync::CancellationToken;

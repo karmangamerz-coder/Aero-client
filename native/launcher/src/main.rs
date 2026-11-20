@@ -14,21 +14,25 @@ fn main() {
         .build()
         .expect("Runtime initialization failed");
     let _guard = runtime.enter();
+    let root = aero_core::Store::default_root();
     let settings = runtime
-        .block_on(aero_core::storage::Settings::load(
-            &aero_core::Store::default_root(),
-        ))
+        .block_on(aero_core::storage::Settings::load(&root))
         .unwrap_or_default();
-    let backend = backend::Backend::start(settings);
+    let accounts = runtime
+        .block_on(aero_core::auth::load_accounts(&root))
+        .unwrap_or_default();
+    let onboarding = runtime.block_on(aero_core::onboarding::load(&root));
+    let backend = backend::Backend::start(settings, accounts, onboarding);
     launch(
         LaunchConfig::new()
-            // 32 MiB of GPU resource cache is enough for three static SVGs; the
-            // window itself is repainted only on input.
+            // 32 MiB of GPU resource cache holds the static landscape, the logo and
+            // the composed character; the window repaints only on input.
             .with_gpu_resource_cache_limit(32usize * 1024 * 1024)
             .with_window(
                 WindowConfig::new_app(ui::Aero { backend })
                     .with_title("Aero Client")
-                    .with_size(1180., 760.),
+                    .with_size(1180., 760.)
+                    .with_min_size(880., 560.),
             ),
     );
 }

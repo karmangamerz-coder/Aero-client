@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: MIT
-//! Window chrome: the 64 px icon rail, compact top bar and status strip.
-use crate::{design::*, ui::Ui};
-use aero_core::{Instance, storage::Settings};
+//! Window chrome: narrow icon-only rail, compact top bar with the Aero wordmark and
+//! the Microsoft account selector, and a status strip that appears only while work
+//! is running.
+use crate::{
+    backend::{Backend, Command, Snapshot},
+    design::*,
+    ui::Ui,
+};
 use freya::prelude::*;
 
 pub fn rail(ui: &Ui, p: Palette) -> Rect {
@@ -10,28 +15,23 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
     let mut rail = rect()
         .width(Size::px(RAIL_WIDTH))
         .height(Size::fill())
-        .padding((10., 8.))
+        .padding((8., 8.))
         .spacing(6.)
         .cross_align(Alignment::Center)
-        .background(p.glass)
+        .background(p.rail)
         .border(Border::new().width(1.).fill(p.border_soft));
     rail = rail.child(
         rect()
-            .width(Size::px(44.))
-            .height(Size::px(42.))
+            .width(Size::px(40.))
+            .height(Size::px(40.))
             .center()
-            .child(logo(34.)),
+            .child(logo(26.)),
     );
-    rail = rail.child(
-        rect()
-            .width(Size::px(28.))
-            .height(Size::px(1.))
-            .background(p.border_soft),
-    );
+    rail = rail.child(hairline(p));
     for (index, (label, _)) in NAV.iter().enumerate() {
         let selected = page.read().eq(&index);
         rail = rail.child(TooltipContainer::new(Tooltip::new_text(*label)).child(
-            rail_button(index, selected, p).on_press(move |_| {
+            nav_button(index, selected, p).on_press(move |_| {
                 page.set(index);
                 detail.set(String::new());
             }),
@@ -40,96 +40,76 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
     rail
 }
 
-pub fn top_bar(
-    ui: &Ui,
-    p: Palette,
-    settings: &Settings,
-    instances: &[Instance],
-    chosen: Option<&Instance>,
-    backend: &crate::backend::Backend,
-    busy: bool,
-) -> Rect {
-    let mut selected = ui.selected;
-    let page = ui.page;
-    let mut detail = ui.detail;
-    let mut instance_menu = None;
-    if !instances.is_empty() {
-        instance_menu = Some(
-            Select::new()
-                .selected_item(
-                    chosen
-                        .map(|i| format!("{}  ·  {}", i.name, i.version))
-                        .unwrap_or_else(|| "Select instance".into()),
-                )
-                .children(instances.iter().map(|i| {
-                    let id = i.id.clone();
-                    let current = chosen.is_some_and(|c| c.id == i.id);
-                    MenuItem::new()
-                        .selected(current)
-                        .on_press(move |_| {
-                            selected.set(id.clone());
-                            detail.set(String::new());
-                        })
-                        .child(format!("{}  ·  {} {}", i.name, i.version, i.loader))
-                })),
+pub fn top_bar(_ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Rect {
+    let mut items: Vec<MenuItem> = vec![];
+    for account in &s.accounts.accounts {
+        let id = account.uuid.clone();
+        let backend = b.clone();
+        items.push(
+            MenuItem::new()
+                .selected(s.accounts.active.as_deref() == Some(account.uuid.as_str()))
+                .on_press(move |_| backend.send(Command::SwitchAccount(id.clone())))
+                .child(account.name.clone()),
         );
     }
-    let mut bar = rect()
+    let add = b.clone();
+    items.push(
+        MenuItem::new()
+            .on_press(move |_| add.send(Command::SignIn))
+            .child("Add account"),
+    );
+    let sign_out = b.clone();
+    items.push(
+        MenuItem::new()
+            .on_press(move |_| sign_out.send(Command::SignOut))
+            .child("Sign out"),
+    );
+    let label = s
+        .accounts
+        .active_account()
+        .map(|account| account.name.clone())
+        .unwrap_or_else(|| "No Account".to_owned());
+
+    rect()
         .horizontal()
         .width(Size::fill())
         .height(Size::px(TOP_BAR_HEIGHT))
         .padding((0., 14.))
         .spacing(10.)
         .cross_align(Alignment::Center)
-        .background(p.glass)
-        .border(Border::new().width(1.).fill(p.border_soft))
+        .child(logo(24.))
+        .child(strong("Aero Client", 15.5, p.art_text))
+        .child(rect().width(Size::flex(1.)))
         .child(
             rect()
-                .spacing(1.)
-                .child(strong("AERO CLIENT", 12., p.text))
-                .child(dim("Launcher", 9.5, p)),
+                .width(Size::px(190.))
+                .height(Size::px(34.))
+                .child(Select::new().selected_item(label).children(items)),
         )
         .child(
             rect()
                 .width(Size::px(1.))
-                .height(Size::px(24.))
+                .height(Size::px(20.))
                 .background(p.border_soft),
-        );
-    bar = bar.maybe(instance_menu.is_some(), |r| match instance_menu {
-        Some(menu) => r.child(menu),
-        None => r,
-    });
-    if let Some(chosen) = chosen {
-        bar = bar
-            .child(chip(chosen.version.clone(), p, false))
-            .child(chip(format!("{}", chosen.loader), p, false))
-            .child(status_chip(&chosen.status, p));
-    }
-    bar = bar.child(rect().width(Size::flex(1.)));
-    if !settings.show_news {
-        bar = bar.child(ghost("News", p).on_press({
-            let mut page = page;
-            move |_| page.set(0)
-        }));
-    }
-    bar = bar
-        .child(action("Guest", p).on_press({
-            let mut page = page;
-            move |_| page.set(4)
-        }))
-        .child(
-            TooltipContainer::new(Tooltip::new_text("Preferences")).child(
-                rail_button(4, false, p).on_press({
-                    let mut page = page;
-                    move |_| page.set(4)
-                }),
-            ),
-        );
-    let _ = (backend, busy);
-    bar
+        )
+        .child(dim(
+            match s.accounts.active_account() {
+                Some(account) if account.owns_minecraft => "Minecraft",
+                Some(_) => "No ownership",
+                None => "Microsoft",
+            },
+            10.5,
+            p,
+        ))
 }
 
-pub fn status_bar(p: Palette, message: &str, activity: &aero_core::Progress, busy: bool) -> Rect {
+pub fn status_strip(
+    p: Palette,
+    message: &str,
+    activity: &aero_core::Progress,
+    busy: bool,
+    launching: bool,
+) -> Rect {
     let percent = if activity.total > 0 {
         activity.bytes as f32 / activity.total as f32 * 100.
     } else if activity.files_total > 0 {
@@ -144,14 +124,23 @@ pub fn status_bar(p: Palette, message: &str, activity: &aero_core::Progress, bus
         .padding((0., 14.))
         .spacing(12.)
         .cross_align(Alignment::Center)
-        .background(p.glass)
-        .border(Border::new().width(1.).fill(p.border_soft))
+        .background(p.glass_soft)
         .child(dim(message.to_owned(), 11., p))
         .child(rect().width(Size::flex(1.)));
-    if busy {
+    if busy && percent > 0. {
         bar = bar
-            .child(rect().width(Size::px(120.)).child(progress(percent, p)))
+            .child(rect().width(Size::px(140.)).child(progress(percent, p)))
             .child(dim(format!("{percent:.0}%"), 10.5, p));
     }
-    bar.child(dim(if busy { "Working…" } else { "Idle" }, 10.5, p))
+    bar.child(dim(
+        if launching {
+            "Minecraft running"
+        } else if busy {
+            "Working…"
+        } else {
+            "Ready"
+        },
+        10.5,
+        p,
+    ))
 }

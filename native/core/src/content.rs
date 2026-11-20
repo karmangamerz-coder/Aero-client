@@ -1,77 +1,7 @@
 // SPDX-License-Identifier: MIT
-use crate::{CancellationToken, DownloadClient, Store, VERSION_MANIFEST};
+use crate::{CancellationToken, DownloadClient, Store};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-pub struct NewsItem {
-    pub title: String,
-    pub source: String,
-    pub date: String,
-    pub url: String,
-}
-pub async fn news(
-    store: &Store,
-    client: &DownloadClient,
-    cancel: &CancellationToken,
-) -> Result<Vec<NewsItem>> {
-    let manifest = store
-        .cached_json(client, "versions", VERSION_MANIFEST, false, cancel)
-        .await?;
-    let mut result = vec![];
-    for version in manifest["versions"]
-        .as_array()
-        .context("Invalid Minecraft manifest")?
-        .iter()
-        .filter(|v| v["type"] == "release")
-        .take(3)
-    {
-        result.push(NewsItem {
-            title: format!("Minecraft {}", version["id"].as_str().unwrap_or("")),
-            source: "Official release metadata".into(),
-            date: version["releaseTime"]
-                .as_str()
-                .unwrap_or("")
-                .chars()
-                .take(10)
-                .collect(),
-            url: "https://www.minecraft.net/en-us/articles".into(),
-        });
-    }
-    let releases = store
-        .cached_json(
-            client,
-            "aero-releases",
-            "https://api.github.com/repos/karmangamerz-coder/Aero-client/releases?per_page=3",
-            false,
-            cancel,
-        )
-        .await?;
-    for release in releases
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|v| v["draft"] != true)
-        .take(2)
-    {
-        result.push(NewsItem {
-            title: release["name"]
-                .as_str()
-                .or_else(|| release["tag_name"].as_str())
-                .unwrap_or("Aero release")
-                .into(),
-            source: "Aero Client release notes".into(),
-            date: release["published_at"]
-                .as_str()
-                .unwrap_or("")
-                .chars()
-                .take(10)
-                .collect(),
-            url: release["html_url"].as_str().unwrap_or("").into(),
-        });
-    }
-    Ok(result)
-}
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryItem {
     pub title: String,

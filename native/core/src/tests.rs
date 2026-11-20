@@ -409,3 +409,123 @@ async fn manifests_without_instance_overrides_still_load() {
     assert_eq!(read.memory_mib, None);
     assert!(read.java_path.is_empty());
 }
+
+// ---------------------------------------------------------------- M3 additions
+
+#[test]
+fn launch_arguments_substitute_known_variables_only() {
+    use crate::launch::substitute_for_test;
+    let result = substitute_for_test(
+        "--username ${auth_player_name} --uuid ${auth_uuid} --x ${unknown}",
+        &[("auth_player_name", "Player"), ("auth_uuid", "abc")],
+    );
+    assert_eq!(result, "--username Player --uuid abc --x ");
+}
+
+#[test]
+fn launch_rules_follow_the_host_platform() {
+    use crate::launch::rules_for_test;
+    let windows = serde_json::json!([{"action": "allow", "os": {"name": "windows"}}]);
+    assert_eq!(rules_for_test(Some(&windows)), cfg!(target_os = "windows"));
+    let features = serde_json::json!([{"action": "allow", "features": {"is_demo_user": true}}]);
+    assert!(!rules_for_test(Some(&features)));
+}
+
+#[test]
+fn memory_overrides_fall_back_to_settings() {
+    use crate::{Instance, Loader, launch::effective_memory};
+    let instance = Instance {
+        schema: 1,
+        id: uuid::Uuid::new_v4().to_string(),
+        name: "x".into(),
+        version: "1.21.11".into(),
+        loader: Loader::Vanilla,
+        status: "READY".into(),
+        detail: String::new(),
+        memory_mib: None,
+        java_path: String::new(),
+    };
+    assert_eq!(effective_memory(&instance, 4096), 4096);
+    let mut overridden = instance.clone();
+    overridden.memory_mib = Some(6144);
+    assert_eq!(effective_memory(&overridden, 4096), 6144);
+}
+
+#[test]
+fn account_selection_and_removal_are_consistent() {
+    use crate::auth::{Accounts, test_account};
+    let mut accounts = Accounts::default();
+    accounts.upsert(test_account("11111111-1111-1111-1111-111111111111", "One"));
+    accounts.upsert(test_account("22222222-2222-2222-2222-222222222222", "Two"));
+    assert_eq!(accounts.accounts.len(), 2);
+    assert_eq!(
+        accounts.active_account().map(|a| a.name.clone()),
+        Some("Two".into())
+    );
+    accounts
+        .select("11111111-1111-1111-1111-111111111111")
+        .unwrap();
+    assert_eq!(
+        accounts.active_account().map(|a| a.name.clone()),
+        Some("One".into())
+    );
+    accounts.remove("11111111-1111-1111-1111-111111111111");
+    assert_eq!(
+        accounts.active_account().map(|a| a.name.clone()),
+        Some("Two".into())
+    );
+    assert!(
+        accounts
+            .select("33333333-3333-3333-3333-333333333333")
+            .is_err()
+    );
+}
+
+#[test]
+fn skin_composition_produces_a_valid_png() {
+    use crate::skin::{Skin, encode_png, model};
+    let texture = Skin::fallback();
+    let composed = model(&texture);
+    assert_eq!(&composed[..8], b"\x89PNG\r\n\x1a\n");
+    assert!(composed.len() > 1000);
+    let decoded = Skin::decode(&composed);
+    assert!(
+        decoded.is_err(),
+        "the composed character is not a 64x64 skin"
+    );
+    assert_eq!(
+        &encode_png(1, 1, &[255, 0, 0, 255])[..8],
+        b"\x89PNG\r\n\x1a\n"
+    );
+}
+
+#[test]
+fn onboarding_answers_are_validated() {
+    use crate::onboarding::{Onboarding, Progress, STEPS};
+    let answers = Onboarding::default();
+    answers.validate().unwrap();
+    let mut bad = answers.clone();
+    bad.version = "0.0.0".into();
+    assert!(bad.validate().is_err());
+    let mut progress = Progress::default();
+    progress.step = STEPS as u8;
+    assert!(progress.step as usize <= STEPS);
+}
+
+#[test]
+fn hardware_recommendations_leave_the_system_room() {
+    use crate::hardware::Hardware;
+    let small = Hardware {
+        memory_mib: 4_000,
+        cores: 2,
+        ..Default::default()
+    };
+    assert_eq!(small.recommended_memory_mib(), 1952);
+    let large = Hardware {
+        memory_mib: 32_000,
+        cores: 12,
+        ..Default::default()
+    };
+    assert_eq!(large.recommended_memory_mib(), 4096);
+    assert!(large.recommended_memory_mib() as u64 + 2048 <= large.memory_mib);
+}

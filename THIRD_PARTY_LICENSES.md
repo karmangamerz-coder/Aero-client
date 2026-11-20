@@ -37,3 +37,22 @@ No JavaFX web/media modules are used. Review native bundles before public binary
 Downloads are installed locally at the user's request. Installing a loader does not
 relicense it or establish Minecraft ownership. Future mods need individual license,
 compatibility, source and notice review. GitHub Actions are not application dependencies.
+
+## Native Rust launcher dependencies (Cargo, MIT-compatible)
+
+| Component | Version | License / use |
+| --- | --- | --- |
+| Freya | 0.5.3 | MIT; native egui-free UI toolkit over Skia (https://github.com/marc2332/freya). |
+| Skia bindings (freya-skia-safe) | 0.104.0 | MIT/BSD-3-Clause; 2D rendering used by Freya. |
+| Tokio | 1.54 | MIT; async runtime, process supervision. |
+| Reqwest | 0.12 | MIT/Apache-2.0; HTTP client. TLS is rustls (below), not OpenSSL. |
+| rustls / ring / webpki-roots | as locked | MIT/Apache-2.0/ISC; TLS with bundled web PKI roots (ADR 0006). |
+| Serde / serde_json | 1.x | MIT/Apache-2.0; manifest serialisation. |
+| PNG (`png`) | 0.17 | MIT/Apache-2.0; decodes Minecraft skin textures. |
+| sysinfo | 0.33 | MIT; read-only CPU/memory/disk/OS detection for setup. |
+| zip, sha1, hex, uuid, fs2, futures-util, regex, bytes, anyhow | as locked | Permissive licenses; downloads, integrity and hashing. |
+| windows-sys | 0.61 | MIT/Apache-2.0; DPAPI token sealing and file-system calls on Windows. |
+
+Rust dependency licenses must be re-reviewed with `cargo deny`/`cargo license` before a
+public binary release, and their notices shipped with the M9 installer. Only official
+Microsoft, Mojang, FabricMC, Forge, Modrinth and GitHub endpoints are contacted.

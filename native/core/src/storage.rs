@@ -402,7 +402,9 @@ pub struct Settings {
     pub custom_java: String,
     pub low_performance: bool,
     pub reduced_motion: bool,
-    pub show_news: bool,
+    /// Performance preset chosen in setup; kept as a string so future presets stay
+    /// backwards compatible.
+    pub performance: String,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -412,7 +414,7 @@ impl Default for Settings {
             custom_java: String::new(),
             low_performance: false,
             reduced_motion: true,
-            show_news: true,
+            performance: "Balanced".into(),
         }
     }
 }

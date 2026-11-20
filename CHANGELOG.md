@@ -2,6 +2,40 @@
 
 This project uses Semantic Versioning. Dates use ISO 8601.
 
+## 0.4.0 — 2026-11-21
+
+### Added
+- Microsoft sign-in with the official OAuth 2.0 device-code flow in the system browser
+  (Xbox Live, XSTS and Minecraft services), ownership verification, profile and skin
+  retrieval, automatic token refresh, multiple accounts with switching and removal.
+- Encrypted account storage: Windows DPAPI (`accounts.bin`); tokens are never logged or
+  shown in the interface.
+- Authenticated launching: arguments from verified metadata, managed or explicit Java,
+  memory allocation, supervised game process, bounded live logs, crash-report discovery
+  and launch cancellation.
+- First-launch setup wizard with seven steps, live theme previews, hardware detection,
+  resumable progress, persisted completion and a Settings entry to run it again.
+- CPU/RAM/storage/OS detection with conservative memory and performance recommendations.
+- Minecraft skin rendering: real skins when signed in, an original Aero fallback skin
+  otherwise, composed on the CPU once per skin change.
+
+### Changed
+- Home screen redesigned to match the M2.1 reference: no news, no promotional copy, Aero
+  branding in the top bar, compact account selector at the top-right, narrow icon-only
+  rail, large character with instance/version/loader selectors beneath it and one glossy
+  Launch control with an adjacent instance settings button.
+- Installation progress is displayed inside the launch control instead of only in a strip.
+- Themes consolidated into Aero Light, Aero Dark and Aero Lite and applied to every page.
+- Downloads page now shows live Minecraft output and can stop the game process.
+
+### Removed
+- The unfinished news feature and its cached background request, including the
+  `show_news` setting and the `NewsItem` content API.
+
+### Fixed
+- The launcher no longer holds a watch-channel borrow across an await point, so the
+  backend future is `Send` and sign-in/launch tasks compile on Tokio.
+
 ## 0.3.0 — 2026-11-20
 
 ### Added

@@ -11,48 +11,47 @@ never sacrifice correctness or security to reduce cost.
   parity is validated; no Tauri, Electron, Chromium or JavaFX in the replacement.
 - Launcher layout: `native/core` owns services and safety; `native/launcher/src` splits
   into `design.rs` (tokens + custom controls), `shell.rs` (rail/top bar/status strip),
-  `pages.rs` (pure page composition) and `ui.rs` (single owner of reactive state). Keep
-  page functions hook-free and event-driven; never add a render timer, polling loop or
-  periodic metadata request. Per-instance advanced settings belong in the instance
-  manifest (`memory_mib`, `java_path`), not in global preferences.
-- Verify with `cargo test -p aero-core` and `cargo check --workspace` (zero warnings).
-  GUI linking needs the platform GUI dev libraries; the Windows workflow remains the
-  authority for release builds. TLS uses rustls, not the OS trust store — see ADR 0006
-  before changing the HTTP stack.
-- Do not copy GPL OneLauncher source or branding. Architecture reference only.
-- Standalone native distribution uses cargo-packager/NSIS in M9; no launcher Java needed.
-- Original code is MIT as directed by the owner for M2; third-party licenses remain intact.
-- Free/open-source project: no paid gates, subscriptions, cosmetics, proprietary Aero
-  modules, mandatory Aero accounts/telemetry, tracking or source obfuscation.
-- Never copy proprietary Lunar Client or OneClient source. Use public APIs and reviewed
-  open-source dependencies with notices, version locks and verified checksums.
-- Keep launcher and client independently buildable. Java 21 toolchain; wrapper only.
-- M2 installs official game files; M3 owns Microsoft authentication, ownership checks
-  and authenticated launch. No offline ownership bypass. Do not start M3 automatically.
-- Never commit credentials, tokens, signing keys, game binaries, downloaded game Java,
-  caches or user data. Use HTTPS allowlisted distributions, validated redirects, integrity
-  verification, safe paths, atomic final writes and bounded inputs. Never run installers
-  or arbitrary commands from remote metadata. Custom Java is explicit user choice.
-- UUID instance manifests own only their directories. Never overwrite unrelated instances
-  or user content. Share verified assets/libraries and compatible runtimes, not saves/configs.
-- Record every major architecture decision in an ADR; retain superseded records.
+  `pages.rs` (pure page composition, incl. the setup wizard) and `ui.rs` (single owner of
+  reactive state). Keep page functions hook-free and event-driven; never add a render
+  timer, polling loop or periodic metadata request. Per-instance advanced settings belong
+  in the instance manifest (`memory_mib`, `java_path`), not in global preferences.
+- Authentication lives in `native/core/src/auth.rs`: Microsoft OAuth 2.0 device code in
+  the user's browser, Xbox Live, XSTS, Minecraft services, entitlement verification,
+  profile and skin. Never collect a Microsoft password, never bypass ownership and never
+  log, print or persist tokens in plaintext on Windows (DPAPI) — no token in UI text,
+  logs, crash reports, telemetry or error bodies.
+- Launching lives in `native/core/src/launch.rs`: arguments are built only from verified
+  metadata written during installation, the token is passed as an argument (never on a
+  command line that gets logged), Java comes from the managed runtime or an explicit
+  user choice, and the process is supervised with bounded log buffers, cancellation and
+  crash-report discovery. Never run arbitrary commands from remote metadata.
+- The first-launch setup wizard (`native/core/src/onboarding.rs`, `pages::wizard`) is a
+  permanent feature: it must resume after a restart, persist completion, never show
+  again once completed, and be re-runnable from Settings.
 
-## Permanent visual system
-- Modern Modrinth-inspired usability with original Frutiger Aero / Windows 7 Aero styling.
-- Compact Home, Library, Discover, Downloads, Settings navigation; clean layout, consistent
-  typography/spacing, restrained outline SVG icons only where useful.
-- Subtle glossy glass, aqua/sky-blue accents, natural green and a glossy green Play button.
-  Nature-inspired backgrounds where appropriate; accessible contrast and responsive layout.
-- No generic dark gaming dashboard, unnecessary cards/badges/decorations, excessive
-  rounding/gradients/animations, expensive live blur or copied branding/interface.
-- Apply this system to future pages, mod menus, HUD editors and music overlays.
+## Permanent visual system (M2.1)
+- Modern Modrinth-inspired usability with original Frutiger Aero / Windows 7 Aero styling:
+  sky-blue and green landscape, translucent blue glass navigation and controls, subtle
+  gloss, moderate corner radii, Segoe UI, consistent outline SVG icons, compact spacing.
+- Home screen: narrow icon-only rail, Aero branding in the top bar, Microsoft account
+  selector at top-right, large interactive character preview (real skin when signed in,
+  original Aero fallback otherwise), username and online state, compact instance/version/
+  loader selectors beneath the character, one glossy green Launch button with a settings
+  button beside it, installation progress shown in the launch control.
+- No news section, no promotional headings, no dashboard cards, no badges or decorations
+  that do not carry information. No excessive glow, lens flares, bubbles, oversaturation,
+  live blur or copied branding. Static landscape artwork only; no per-frame animation.
+- Appearance presets: Aero Light, Aero Dark, Aero Lite (flat, no photo, cheapest).
+- The same system applies to every page, the wizard, and future mod menus, HUD editors
+  and music overlays.
 
 ## Performance and distribution
 - Reference: Ryzen 5 5500U, integrated Radeon, 16 GB DDR4, Windows 11. Never invent benchmarks.
-- Never block the JavaFX thread with disk/network work, extraction, hashing or subprocesses.
-  Bound downloads and worker queues; reuse metadata/files/runtimes. Idle work stops; no
-  continuous rendering, unnecessary threads/dependencies, Electron or Chromium.
-- End users must not install Java, JavaFX, Gradle, IntelliJ or developer tools.
+- Never block the UI thread with disk/network work, extraction, hashing, subprocesses or
+  authentication polling; the game process and sign-in polling are supervised tasks.
+- Idle work stops: no continuous rendering, no render timers, no background polling.
+  Character artwork is composed once per skin change; hardware detection runs once.
+- End users must not install Java, Rust, Gradle, IntelliJ or developer tools.
 - Use jlink for a minimal launcher runtime and jpackage for the M9 Windows installer.
   Bundle required JavaFX; manage game runtimes independently and automatically in M2.
 - M9 artifacts: AeroClient-Setup.exe, AeroClient-Portable.zip where practical, SHA256SUMS.txt.
