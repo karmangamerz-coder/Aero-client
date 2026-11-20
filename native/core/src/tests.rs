@@ -353,3 +353,59 @@ async fn native_zip_slip_is_rejected() {
     );
     assert!(!dir.path().join("escape.dll").exists());
 }
+
+#[tokio::test]
+async fn instance_overrides_persist_and_are_validated() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::new(dir.path().to_path_buf());
+    let instance = store
+        .create("Overrides", "1.21.11", Loader::Fabric, false)
+        .await
+        .unwrap();
+    assert_eq!(instance.memory_mib, None);
+    store
+        .configure(&instance.id, Some(2048), "C:/Java/bin/java.exe")
+        .await
+        .unwrap();
+    let saved = store.read(&instance.id).await.unwrap();
+    assert_eq!(saved.memory_mib, Some(2048));
+    assert_eq!(saved.java_path, "C:/Java/bin/java.exe");
+    assert!(store.configure(&instance.id, Some(512), "").await.is_err());
+    assert!(
+        store
+            .configure(&instance.id, None, "bad\npath")
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn manifests_without_instance_overrides_still_load() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::new(dir.path().to_path_buf());
+    let instance = store
+        .create("Legacy", "1.8.9", Loader::Forge, false)
+        .await
+        .unwrap();
+    let manifest = serde_json::json!({
+        "schema": 1,
+        "id": instance.id,
+        "name": instance.name,
+        "version": instance.version,
+        "loader": "FORGE",
+        "status": "READY",
+        "detail": "Legacy manifest"
+    });
+    let file = store
+        .directory(&instance.id)
+        .await
+        .unwrap()
+        .join("instance.json");
+    fs::write(&file, serde_json::to_vec_pretty(&manifest).unwrap())
+        .await
+        .unwrap();
+    let read = store.read(&instance.id).await.unwrap();
+    assert_eq!(read.status, "READY");
+    assert_eq!(read.memory_mib, None);
+    assert!(read.java_path.is_empty());
+}

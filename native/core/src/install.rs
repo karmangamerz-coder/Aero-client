@@ -4,13 +4,12 @@ use crate::{
     VERSION_MANIFEST, runtime,
     storage::{safe_path, validate_relative, write_atomic},
 };
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, HashSet},
     io::Read,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 use tokio::fs;
 
@@ -65,6 +64,18 @@ impl Installer {
         let value: Value = serde_json::from_slice(&fs::read(file).await?)?;
         ensure!(value["id"] == id, "Metadata version mismatch");
         Ok(value)
+    }
+    /// Read back the verified installation plan written by the last successful run.
+    pub async fn plan(&self, instance: &Instance) -> Result<Option<Value>> {
+        let path = safe_path(
+            &self.store.directory(&instance.id).await?,
+            "installation/plan.json",
+        )
+        .await?;
+        if !fs::try_exists(&path).await? {
+            return Ok(None);
+        }
+        Ok(Some(serde_json::from_slice(&fs::read(path).await?)?))
     }
     pub async fn loader(
         &self,

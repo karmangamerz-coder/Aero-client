@@ -3,7 +3,10 @@
 use freya::prelude::*;
 mod backend;
 mod design;
+mod pages;
+mod shell;
 mod ui;
+
 fn main() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -19,6 +22,8 @@ fn main() {
     let backend = backend::Backend::start(settings);
     launch(
         LaunchConfig::new()
+            // 32 MiB of GPU resource cache is enough for three static SVGs; the
+            // window itself is repainted only on input.
             .with_gpu_resource_cache_limit(32usize * 1024 * 1024)
             .with_window(
                 WindowConfig::new_app(ui::Aero { backend })

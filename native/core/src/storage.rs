@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
@@ -125,6 +125,11 @@ pub struct Instance {
     pub loader: Loader,
     pub status: String,
     pub detail: String,
+    /// Advanced per-instance overrides; absent in manifests written before M2-R.
+    #[serde(default)]
+    pub memory_mib: Option<u32>,
+    #[serde(default)]
+    pub java_path: String,
 }
 #[derive(Clone)]
 pub struct Store {
@@ -163,7 +168,12 @@ impl Store {
                 && instance.id == id
                 && crate::TARGETS.contains(&instance.version.as_str())
                 && !instance.name.is_empty()
-                && instance.name.len() <= 160,
+                && instance.name.len() <= 160
+                && !instance.java_path.chars().any(char::is_control)
+                && instance.java_path.len() <= 512
+                && instance
+                    .memory_mib
+                    .is_none_or(|memory| (1024..=32768).contains(&memory)),
             "Invalid instance manifest"
         );
         if instance.status == "INSTALLING" {
@@ -243,6 +253,8 @@ impl Store {
             loader,
             status: "NEW".into(),
             detail: "Not installed".into(),
+            memory_mib: None,
+            java_path: String::new(),
         };
         self.save(&instance).await?;
         Ok(instance)
@@ -314,6 +326,22 @@ impl Store {
             return Err(error);
         }
         Ok(copy)
+    }
+    /// Advanced per-instance settings, saved in the instance manifest only.
+    pub async fn configure(&self, id: &str, memory_mib: Option<u32>, java: &str) -> Result<()> {
+        ensure!(
+            memory_mib.is_none_or(|memory| (1024..=32768).contains(&memory)),
+            "Instance memory must be 1024–32768 MiB"
+        );
+        let java = java.trim();
+        ensure!(
+            java.len() <= 512 && !java.chars().any(char::is_control),
+            "Invalid Java executable path"
+        );
+        let mut instance = self.read(id).await?;
+        instance.memory_mib = memory_mib;
+        instance.java_path = java.to_owned();
+        self.save(&instance).await
     }
     pub async fn rename(&self, id: &str, name: &str) -> Result<()> {
         ensure!(
