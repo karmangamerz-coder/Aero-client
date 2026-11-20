@@ -10,7 +10,7 @@ small fixes need no prior approval. Maintainers review technical merit openly.
 4. Add an ADR for major architectural choices and update CHANGELOG's Unreleased section.
 5. Open a PR describing the problem, behavior, tests and limitations.
 
-Your original contributions are licensed GPL-3.0-only. Add an SPDX header to new
+Your original contributions are licensed MIT. Add an SPDX header to new
 source files. Submit only code you are entitled to contribute; describe provenance
 of adapted open-source code and preserve attribution. Never use leaked or proprietary
 Lunar Client or OneClient code. No contributor license assignment is required.

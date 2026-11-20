@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: MIT
 package org.aeroclient.client;
 
 /** Platform-neutral customization defaults; adapters consume these in a later milestone. */

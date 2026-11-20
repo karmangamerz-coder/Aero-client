@@ -1,0 +1,25 @@
+/* SPDX-License-Identifier: MIT */
+.root { -fx-font-family: 'Segoe UI', sans-serif; -fx-font-size: 14px; -fx-base: #f3f9fb; -fx-background: #edf5f8; -fx-text-background-color: #153849; -fx-accent: #26809c; -fx-focus-color: #186f94; -fx-faint-focus-color: #186f9433; }
+.sidebar { -fx-padding: 24 12 20 12; -fx-background-color: linear-gradient(to bottom, #e0f4fb, #f2f8fa); -fx-border-color: transparent #b9d4df transparent transparent; -fx-border-width: 1; }
+.brand { -fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #145671; -fx-padding: 0 10 0 10; }
+.eyebrow { -fx-font-size: 10px; -fx-text-fill: #386477; -fx-padding: 0 12 18 12; }
+.nav { -fx-alignment: center-left; -fx-graphic-text-gap: 12; -fx-background-color: transparent; -fx-padding: 12 10; -fx-background-radius: 4; -fx-border-color: transparent; }
+.nav:hover { -fx-background-color: #d3eaf3; }
+.nav:selected { -fx-background-color: linear-gradient(to bottom, #ffffff, #c7e6f1); -fx-border-color: #8fbccd; -fx-border-radius: 4; -fx-text-fill: #123f52; }
+.outline-icon { -fx-fill: transparent; -fx-stroke: #2d6278; -fx-stroke-width: 1.4; -fx-stroke-line-cap: round; -fx-stroke-line-join: round; }
+.page { -fx-padding: 28 32 32 32; }
+.page-scroll, .page-scroll > .viewport { -fx-background-color: #edf5f8; -fx-border-width: 0; }
+.title { -fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #143c50; }
+.muted { -fx-text-fill: #365a6b; -fx-font-size: 13px; -fx-line-spacing: 3; }
+.hero { -fx-padding: 24 28; -fx-background-color: linear-gradient(to bottom right, #e9fbff, #badfeb 65%, #d6e9c8); -fx-border-color: #ffffff #9bbfcf #91b2c3 #ffffff; -fx-border-radius: 6; -fx-background-radius: 6; }
+.hero .title { -fx-font-size: 30px; }
+.button { -fx-cursor: hand; -fx-padding: 9 14; -fx-background-radius: 4; -fx-border-radius: 4; }
+.button:focused { -fx-border-color: #176b91; -fx-border-width: 2; }
+.primary { -fx-background-color: linear-gradient(to bottom, #f5ffef, #c4e7a4); -fx-border-color: #799f5f; -fx-text-fill: #244418; -fx-font-weight: bold; }
+.play { -fx-background-color: linear-gradient(to bottom, #e9ffd7 0%, #acd479 48%, #72a83d 50%, #90bd59 100%); -fx-border-color: #527e2e; -fx-text-fill: #19350b; -fx-font-size: 19px; -fx-font-weight: bold; -fx-padding: 10 50; }
+.play:disabled { -fx-opacity: 0.83; }
+.text-field, .combo-box, .spinner { -fx-background-radius: 4; -fx-border-radius: 4; }
+.progress-bar > .bar { -fx-background-color: linear-gradient(to bottom, #b8e58e, #70aa42); -fx-background-radius: 3; }
+.root:night { -fx-base: #dbe8ed; -fx-background: #ccdde4; }
+.root:night .page-scroll, .root:night .page-scroll > .viewport { -fx-background-color: #ccdde4; }
+.root:night .hero { -fx-background-color: linear-gradient(to bottom right, #c8e8f3, #a4cbdc 65%, #bed4ae); }

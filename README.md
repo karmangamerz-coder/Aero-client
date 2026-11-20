@@ -1,67 +1,65 @@
 # Aero Client
 
-A completely free, open-source Minecraft Java Edition launcher and client project.
-Original code is licensed under **GPL-3.0-only**, subject to third-party compatibility.
-The project vision includes Frutiger Aero aesthetics, performance optimizations,
-customizable HUDs and Modrinth integration; these remain planned beyond the foundation.
-Not an official Minecraft product; not approved by or associated with Mojang or Microsoft.
+Free, open-source Minecraft Java Edition launcher and client foundations. **MIT**
+for original source; third-party components retain their own licenses.
+Not an official Minecraft product; not affiliated with Mojang or Microsoft.
 
-## Current status: 0.1.0 / Milestone 1
+## 0.2.0 — M1 visual refinement and M2 installation
 
-Implemented: a Java 21 Swing launcher shell, validated local preferences with atomic
-replacement where supported, an independent platform-neutral client settings core,
-unit tests, Gradle wrapper, reproducible JAR settings, and native app-image packaging.
+The JavaFX launcher has Home, Library, Discover, Downloads and Settings, with a
+lightweight modern Frutiger Aero design. M1 local preferences and the independent
+client settings library are preserved. Discover/Modrinth marketplace work belongs to M4.
 
-**This is not yet a playable Minecraft client.** Authentication, entitlement checks,
-official game downloads and a mod-loader adapter are future milestones. Play is
-disabled. No mock authentication, offline ownership bypass or bundled game binaries.
-Theme and memory choices are stored preferences for future integration.
+M2 installs official Minecraft files for versions actually present in live metadata:
+1.8.9, 1.21.11, 26.2 and 26.3. Choose Vanilla, compatible stable Fabric for modern
+versions, or Forge 11.15.1.2318 for 1.8.9. Installation supports **Windows 10/11 x64**.
+Metadata determines the required Java runtime. Aero detects compatible game Java,
+honors a compatible custom executable, or downloads and verifies a shared runtime.
+No manual game Java installation is required.
 
-## Commitments
+**Play is intentionally disabled.** Microsoft authentication, ownership verification
+and authenticated game launch belong to M3 and are not implemented here. Installation
+does not imply ownership and provides no offline/cracked launch path. No game files,
+downloaded runtimes, credentials or user data are redistributed in this repository.
 
-- All original launcher and client source must be public before distribution.
-- No premium features, subscriptions, paid cosmetics or proprietary Aero modules.
-- No Aero account requirement, telemetry, tracking or source obfuscation.
-- Community contributions and independently compiled launcher/client are welcome.
-- Original implementations using public APIs and compatible open-source libraries;
-  never copy proprietary Lunar Client or OneClient source code.
-- Minecraft ownership must be verified through legitimate Microsoft authentication
-  before game access; game files will come from official distribution services.
-- Privacy, performance, customization and transparent community governance come first.
+Downloads support integrity checks, cancellation, bounded retries, partial-file resume,
+cache reuse and repair. Instances isolate saves, configs, mods, resource packs and
+shader packs. Repair preserves user content and rechecks required shared files.
 
-## Build and run
+## Run from source (developers)
 
-Install JDK 21, then run from this directory (Windows: use `gradlew.bat`):
+Use JDK 21 and the checked-in wrapper. Windows:
 
-```sh
-./gradlew clean build
-./gradlew :launcher:run
-./gradlew :launcher:build       # does not build client
-./gradlew :client:build         # does not build launcher
-./gradlew :launcher:packageNative
-java -jar launcher/build/libs/launcher-0.1.0.jar --self-check
+```powershell
+.\gradlew.bat :launcher:run
+.\gradlew.bat clean build
+.\gradlew.bat :launcher:run --args=--verify-metadata
+.\gradlew.bat :launcher:packageNative
 ```
 
-The wrapper downloads the pinned Gradle distribution and validates its SHA-256.
-Initial builds need network access to Gradle and Maven Central. Later builds may use
-`--offline` with a populated cache. Runtime Milestone 1 makes no network requests.
-Tests use JUnit; the application has no third-party runtime libraries.
+Linux/macOS developers use `./gradlew`; the shell builds there, but M2 game installation
+is Windows x64 only. Launcher/client build independently with `:launcher:build` and
+`:client:build`. The launcher now needs its dependency JARs; use Gradle run, the generated
+`launcher/build/install/launcher/bin/launcher.bat` after `:launcher:installDist`, or
+the portable application image. A bare launcher JAR alone is not a distribution.
 
-Native output: `launcher/build/native/AeroClient/` (Windows/Linux) or
-`launcher/build/native/AeroClient.app` (macOS). Windows contains `AeroClient.exe`;
-keep its companion directories. These are portable application images, not installers.
-Packaging runs on the target OS. CI covers Windows, Linux and macOS. Images bundle
-a Java runtime with its legal notices and are currently unsigned/not notarized.
+Developer-only CLI: `--install 1.8.9 FORGE` or `--install 26.3 FABRIC` installs without
+launching. Override storage using `-Daero.dataDir=<absolute path>` when invoking Java
+or Gradle. Never point this at an existing unrelated game directory.
 
-Preferences are written only when Save is clicked to
-`~/.aero-client/settings.properties`; delete that file to reset them.
+## Local data and privacy
 
-## Development and releases
+Preferences remain in `~/.aero-client/settings.properties`; optional custom Java is
+in `~/.aero-client/custom-java.txt`. Game data defaults to `~/.aero-client/data/`.
+Startup does not fetch metadata or download files: use Refresh official versions.
+No telemetry, accounts, premium features, subscriptions, paid cosmetics or tracking.
+See [PRIVACY](PRIVACY.md), [architecture](docs/ARCHITECTURE.md),
+[PROJECT_STATE](PROJECT_STATE.md), [ROADMAP](ROADMAP.md) and [contributing](CONTRIBUTING.md).
 
-See [CONTRIBUTING](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md),
-[ADRs](docs/adr/README.md), [ROADMAP](ROADMAP.md), [privacy](PRIVACY.md), and
-[third-party notices](THIRD_PARTY_LICENSES.md).
-Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
-See [release instructions](docs/RELEASING.md) for public-source requirements,
-checksums and reproducibility limits. CI configuration is supplied; hosted runs
-require publishing this repository to GitHub.
+## Distribution
+
+Current `:launcher:packageNative` produces a development portable app image using
+jlink + jpackage, with a bundled launcher runtime and JavaFX dependencies. End users
+of that image need no Java, JavaFX, Gradle or IDE. Production `AeroClient-Setup.exe`,
+portable ZIP, signing, shortcuts and installer polish remain M9 work. Preserve all
+image directories and third-party notices. Game runtimes are managed separately.

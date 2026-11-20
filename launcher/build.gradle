@@ -1,10 +1,50 @@
 plugins { id 'application' }
 application { mainClass = 'org.aeroclient.launcher.AeroLauncher' }
-tasks.named('jar') { manifest { attributes 'Main-Class': application.mainClass.get() } }
-tasks.register('packageNative', Exec) {
+def hostOs = System.getProperty('os.name').toLowerCase()
+def arm = System.getProperty('os.arch').contains('aarch64')
+def fxPlatform = hostOs.contains('windows') ? 'win' : hostOs.contains('mac') ? (arm ? 'mac-aarch64' : 'mac') : (arm ? 'linux-aarch64' : 'linux')
+configurations { platformVerification }
+dependencies {
+    implementation 'com.google.code.gson:gson:2.13.2'
+    ['base', 'graphics', 'controls'].each { module ->
+        implementation("org.openjfx:javafx-${module}:21.0.13:${fxPlatform}") { transitive = false }
+        ['win', 'linux', 'mac', 'mac-aarch64', 'linux-aarch64'].each { target ->
+            platformVerification("org.openjfx:javafx-${module}:21.0.13:${target}") { transitive = false }
+        }
+    }
+}
+tasks.register('verifyPlatforms') { doLast { configurations.platformVerification.files.each { assert it.exists() } } }
+tasks.named('run', JavaExec) {
+    if (System.getProperty('aero.dataDir')) systemProperty 'aero.dataDir', System.getProperty('aero.dataDir')
+}
+tasks.named('jar') {
+    manifest { attributes 'Main-Class': application.mainClass.get(), 'Class-Path': configurations.runtimeClasspath.files.collect { it.name }.join(' ') }
+}
+tasks.register('prepareNative', Sync) {
     dependsOn tasks.named('jar')
+    from tasks.named('jar')
+    from configurations.runtimeClasspath
+    from(rootProject.file('LICENSE'))
+    from(rootProject.file('THIRD_PARTY_LICENSES.md'))
+    from(rootProject.file('third-party')) { into 'third-party' }
+    into layout.buildDirectory.dir('native-input')
+}
+tasks.register('launcherRuntime', Exec) {
+    def destination = layout.buildDirectory.dir('launcher-runtime')
+    outputs.dir(destination)
+    doFirst {
+        delete destination
+        def javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath
+        commandLine javaHome.file('bin/jlink' + (hostOs.contains('windows') ? '.exe' : '')).asFile,
+            '--add-modules', 'java.base,java.desktop,java.net.http,java.logging,java.xml,jdk.crypto.ec,jdk.unsupported',
+            '--strip-debug', '--no-header-files', '--no-man-pages', '--compress=2', '--output', destination.get().asFile
+    }
+}
+tasks.register('packageNative', Exec) {
+    dependsOn tasks.named('prepareNative'), tasks.named('launcherRuntime')
     def destination = layout.buildDirectory.dir('native')
-    inputs.file(tasks.named('jar').flatMap { it.archiveFile })
+    inputs.dir(layout.buildDirectory.dir('native-input'))
+    inputs.dir(layout.buildDirectory.dir('launcher-runtime'))
     outputs.dir(destination)
     doFirst {
         delete destination
@@ -13,10 +53,10 @@ tasks.register('packageNative', Exec) {
         commandLine javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile,
             '--type', 'app-image', '--name', 'AeroClient',
             '--app-version', project.version.toString(),
-            '--input', tasks.named('jar').get().destinationDirectory.get().asFile,
+            '--input', layout.buildDirectory.dir('native-input').get().asFile,
             '--main-jar', tasks.named('jar').get().archiveFileName.get(),
             '--main-class', application.mainClass.get(),
-            '--add-modules', 'java.base,java.desktop',
+            '--runtime-image', layout.buildDirectory.dir('launcher-runtime').get().asFile,
             '--dest', destination.get().asFile
     }
 }

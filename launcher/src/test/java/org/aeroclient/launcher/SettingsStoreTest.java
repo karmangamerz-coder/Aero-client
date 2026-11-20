@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: MIT
 package org.aeroclient.launcher;
 import java.nio.file.*;
 import java.io.IOException;

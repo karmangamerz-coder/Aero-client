@@ -28,7 +28,7 @@ jobs:
         run: ./gradlew --no-daemon clean build :launcher:packageNative
       - name: Launcher smoke test
         shell: bash
-        run: java -cp launcher/build/classes/java/main org.aeroclient.launcher.AeroLauncher --self-check
+        run: ./gradlew --no-daemon :launcher:run --args=--self-check
       - name: Verify JAR reproducibility
         shell: bash
         run: |

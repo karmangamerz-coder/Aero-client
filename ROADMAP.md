@@ -1,34 +1,56 @@
-# Roadmap
+# Product roadmap
 
-Milestone 1 scope was defined at repository initialization; it is a foundation,
-not a claim of Minecraft gameplay compatibility. Future dates are intentionally unset.
+## M1 — foundation and visual refinement
+- [x] Independent launcher/client builds; settings validation and persistence retained.
+- [x] Public repository, source policies and architecture records.
+- [x] JavaFX shell: Home, Library, Discover, Downloads, Settings.
+- [x] Original modern Frutiger Aero / Windows 7 Aero styling: glossy glass, sky/aqua,
+  green Play, restrained outline SVGs, accessible text, consistent spacing and responsive layout.
+- Permanent: apply this language to future launcher pages, mod menus, HUD editors and music.
+  No generic dark dashboard, copied branding, excessive decoration, blur or animations.
 
-## Milestone 1 — 0.1.0: open foundation
-- [x] Original public-ready source, GPL license and contribution/security/privacy policies.
-- [x] Architecture and ADRs; independent launcher/client build targets.
-- [x] Offline desktop shell with validated local settings; client customization model.
-- [x] Unit tests and pinned, verified build inputs.
-- [x] CI definitions for three operating systems, native images and release checksums.
-- [ ] Publish repository publicly and enable GitHub security/community settings.
-- [ ] Observe hosted CI on all target OSes before distributing a release.
+## M2 — installation, runtimes and instance foundations
+- [x] Official metadata, caching, live availability for 1.8.9, 1.21.11, 26.2, 26.3.
+- [x] Verified client, libraries, Windows natives and asset installation.
+- [x] Compatible modern Fabric; legacy Forge 1.8.9 without executing installer code.
+- [x] Progress, cancel, retry, interrupted-download recovery and repair in Downloads/Library.
+- [x] Java detection, version validation, automatic metadata-driven download, verification,
+  cache/repair/reuse, explicit custom executable and incompatible-selection fallback.
+- [x] UUID-based Aero Default/custom instances; isolated user folders; shared verified files.
+- [ ] Final integration/build/visual verification and publication: see PROJECT_STATE for evidence.
+- Scope: Windows 10/11 x64. Authentication and game launching are not part of M2.
 
-## Milestone 2 — authenticated official game installation
-- Register an approved public Microsoft OAuth application; no embedded client secret.
-- Document and implement the permitted authentication flow, entitlement/profile
-  checks, expiry handling, cancellation, logout and secure token storage.
-- Download manifests, libraries/assets and game files from official services only;
-  validate URLs, redirects, integrity, paths, interrupted downloads and disk limits.
-- Require verified ownership before download/launch; no offline bypass.
-- Integration tests use isolated fakes; no real credentials in fixtures or CI.
+## M3 — authentication and authenticated launch (do not start automatically)
+- Approved Microsoft public-client OAuth flow, entitlement/profile validation, secure token
+  storage, refresh, logout, cancellation and safe process launch. Require legitimate ownership.
+- Resolve inherited loader/vanilla launch arguments and classpath overrides correctly.
+- No embedded secret, Aero account requirement, offline bypass or token logging.
 
-## Milestone 3 — original client integration
-- Select Minecraft version and compatible open-source mod loader through an ADR.
-- Review GPL compatibility and Minecraft linkage/distribution before shipping mods.
-- Implement original FPS/HUD and accessibility customization using public APIs.
-- Measure startup time, frame-time overhead and memory against a documented baseline.
+## M4 — full instances and Modrinth
+- Full instance lifecycle and explicit Modrinth marketplace integration; licensing review,
+  explicit mod installation, compatibility checks and user-data-safe management.
 
-## Milestone 4 — hardening and community release
-- Accessible UI, applied themes, profiles and explicit mod permission boundaries.
-- Audit authentication, download handling and license compliance.
-- Signed/notarized release pipeline where maintainers can support it.
-- Independent reproducibility checks, contributor documentation and community governance.
+## M5 — original client integration
+- Select/review client adapters for target game versions; original performance and HUD modules.
+- Respect every mod license; no proprietary copied implementations.
+
+## M6 — customization and accessibility
+- HUD editor, in-game mod menus, accessible controls and original Aero visual system.
+
+## M7 — music overlay
+- Privacy-conscious optional music integration using compatible public APIs; Aero visuals.
+
+## M8 — performance and hardening
+- Profile on Ryzen 5 5500U / integrated Radeon / 16 GB / Windows 11; publish measured results.
+- Security, cancellation, disk-space, accessibility and upgrade/recovery audits.
+- Permanent: bounded async I/O, no FX thread blocking, caches and immutable sharing,
+  low memory/disk usage, idle background work suspended; no Electron/Chromium/live blur.
+
+## M9 — standalone Windows production distribution
+- Minimal jlink launcher runtime + required JavaFX, packaged by jpackage.
+- AeroClient-Setup.exe, AeroClient-Portable.zip where practical, SHA256SUMS.txt.
+- Optional desktop shortcut, Start Menu shortcut, uninstaller, icon, version information,
+  full third-party notices, signing/notarization as appropriate and tested upgrades.
+- End users need no Java, JavaFX, Gradle, IntelliJ or developer tools.
+- Game runtimes are downloaded only when needed and managed independently by M2.
+- Preserve the current development image pipeline; full production installer work waits here.

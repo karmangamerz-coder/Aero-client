@@ -31,3 +31,11 @@ __pycache__/
 *.rar
 hs_err_pid*
 replay_pid*
+data/
+game-data/
+.aero-client/
+runtimes/
+instances/
+metadata/
+shared/
+*.part

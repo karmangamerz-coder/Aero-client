@@ -1,6 +1,6 @@
 # Security policy
 
-The latest 0.1.x source release receives fixes. Milestone 1 is a development foundation,
+The latest 0.2.x source release receives fixes. Milestone 2 is an installation foundation,
 not a supported game-authentication implementation. No security guarantees are implied.
 
 When the public GitHub repository is available, use Security > Report a vulnerability
