@@ -177,10 +177,10 @@ public final class AeroApplication extends Application {
     }
     @FunctionalInterface private interface Work { void run() throws Exception; }
     private void submit(Work work) {
-        worker.execute(() -> {
+        try { worker.execute(() -> {
             try { work.run(); }
             catch (Exception ex) { Platform.runLater(() -> { busy.set(false); progress.setProgress(0); status.setText(ex.getMessage() == null ? "Operation failed; check metadata and retry." : ex.getMessage()); if (!lastPage.equals("Settings")) showPage("Downloads"); }); }
-        });
+        }); } catch (RejectedExecutionException ex) { status.setText("Aero is busy. Wait for the current operation before retrying."); }
     }
     @Override public void stop() { cancellation.cancel(); worker.shutdownNow(); Thread.ofVirtual().start(installer::close); }
 }

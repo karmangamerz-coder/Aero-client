@@ -6,6 +6,11 @@ unnecessarily restructure the repository. Prefer medium reasoning and targeted w
 never sacrifice correctness or security to reduce cost.
 
 ## Architecture, license and security
+- M2-R supersedes the launcher stack: Rust + Freya + Skia in a Cargo workspace, Tokio,
+  Reqwest and Serde. Keep the in-game client Java. Retain JavaFX fallback until Rust
+  parity is validated; no Tauri, Electron, Chromium or JavaFX in the replacement.
+- Do not copy GPL OneLauncher source or branding. Architecture reference only.
+- Standalone native distribution uses cargo-packager/NSIS in M9; no launcher Java needed.
 - Original code is MIT as directed by the owner for M2; third-party licenses remain intact.
 - Free/open-source project: no paid gates, subscriptions, cosmetics, proprietary Aero
   modules, mandatory Aero accounts/telemetry, tracking or source obfuscation.

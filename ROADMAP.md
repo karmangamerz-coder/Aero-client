@@ -1,5 +1,20 @@
 # Product roadmap
 
+## M2-R — native Rust migration (active)
+- [ ] Port and verify installation/runtime/instance/preferences parity in Rust.
+- [ ] Freya/Skia character-focused Aero design, compact icon rail and glass header.
+- [ ] Light/Dark/Lite themed controls; original landscape and pointer-rotated fallback avatar.
+- [ ] Cached factual news, discovery browsing, accessible download/settings pages.
+- [ ] Windows tests/build, native launch, measured idle usage, verified GitHub publication.
+- Keep JavaFX until parity is validated; keep Java client; no auth/game launch (M3).
+- Permanent design: 58–68 px rail, selected instance/version/account state in header,
+  central character and glossy contextual launch control, collapsible 22–25% news panel.
+  Original assets only; sky/clouds/hills/water as static artwork, no live environmental blur.
+- Controls must be custom-themed, with hover/press/focus/disabled states and keyboard
+  access. Idle animation off by default; reduced motion/static low-performance mode.
+- Native distribution: cargo-packager + NSIS planned in M9, standalone portable executable.
+  Target <150 MB idle memory and <1% CPU where achievable; report measured values only.
+
 ## M1 — foundation and visual refinement
 - [x] Independent launcher/client builds; settings validation and persistence retained.
 - [x] Public repository, source policies and architecture records.

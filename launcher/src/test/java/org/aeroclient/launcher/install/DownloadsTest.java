@@ -17,13 +17,15 @@ class DownloadsTest {
     private HttpServer server;
     private Downloads downloads;
     private URI url;
+    private ExecutorService serverWorkers;
     private final byte[] payload = "verified Minecraft fixture, not a game binary".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     @BeforeEach void start() throws Exception {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        serverWorkers = Executors.newCachedThreadPool(); server.setExecutor(serverWorkers);
         server.start(); url = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/file");
         downloads = new Downloads(Set.of("127.0.0.1"), true);
     }
-    @AfterEach void stop() { downloads.close(); server.stop(0); }
+    @AfterEach void stop() { downloads.close(); server.stop(0); serverWorkers.shutdownNow(); }
     private Downloads.Artifact artifact() throws Exception {
         Path expected = root.resolve("expected"); Files.write(expected, payload);
         return new Downloads.Artifact(url, Downloads.hash(expected), payload.length);
@@ -87,5 +89,28 @@ class DownloadsTest {
             for (String uri : List.of("http://piston-meta.mojang.com/file", "https://piston-meta.mojang.com.evil.org/file", "https://user@piston-meta.mojang.com/file", "https://piston-meta.mojang.com:123/file"))
                 assertThrows(IOException.class, () -> production.validate(URI.create(uri)));
         }
+    }
+    @Test void batchConcurrencyIsBoundedAndEveryFileVerified() throws Exception {
+        var active = new AtomicInteger(); var peak = new AtomicInteger();
+        server.createContext("/file", exchange -> {
+            int current = active.incrementAndGet(); peak.accumulateAndGet(current, Math::max);
+            try {
+                try { Thread.sleep(50); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
+                exchange.sendResponseHeaders(200, payload.length); exchange.getResponseBody().write(payload);
+            } finally { active.decrementAndGet(); exchange.close(); }
+        });
+        var expected = artifact(); var requests = new ArrayList<Downloads.Request>();
+        for (int i = 0; i < 8; i++) requests.add(new Downloads.Request(expected, root, "batch/file-" + i));
+        downloads.fetchAll(requests, new Cancellation(), p -> { });
+        assertTrue(peak.get() <= 3); assertTrue(peak.get() > 1);
+        for (var request : requests) assertTrue(Downloads.valid(root.resolve(request.relative()), expected));
+    }
+    @Test void batchFailureCancelsRemainingTransfers() throws Exception {
+        server.createContext("/file", exchange -> { exchange.sendResponseHeaders(404, -1); exchange.close(); });
+        var expected = artifact(); var token = new Cancellation();
+        assertThrows(IOException.class, () -> downloads.fetchAll(List.of(
+            new Downloads.Request(expected, root, "bad/one"), new Downloads.Request(expected, root, "bad/two")), token, p -> { }));
+        assertThrows(CancellationException.class, token::check);
+        assertFalse(Files.exists(root.resolve("bad/one")));
     }
 }

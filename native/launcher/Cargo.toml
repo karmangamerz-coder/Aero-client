@@ -1,0 +1,19 @@
+[package]
+name = "aero-launcher"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+aero-core = { path = "../core" }
+freya = { version = "=0.5.3", features = ["sdk-tokio", "titlebar", "borderless"] }
+tokio.workspace = true
+tokio-util.workspace = true
+serde_json.workspace = true
+
+[package.metadata.packager]
+product-name = "Aero Client"
+identifier = "org.aeroclient.launcher"
+formats = ["nsis"]
+resources = ["../../LICENSE", "../../THIRD_PARTY_LICENSES.md"]

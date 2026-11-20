@@ -1,5 +1,15 @@
 # Project state
 
+## Active M2-R migration
+Rust workspace under `native/core` and `native/launcher` is being validated alongside
+the retained JavaFX launcher. Original implementation uses Freya 0.5.3/Skia, Tokio,
+Reqwest and Serde; no OneLauncher source/assets were copied. OneLauncher README was
+consulted only for high-level workspace/packaging architecture. Java client stays Java.
+The previous Java 1.8.9 Forge installation completed with READY status. Rust end-to-end
+parity and redesigned UI validation are pending; do not retire JavaFX yet.
+Local C++ build toolchain installation was blocked by automatic approval policy;
+native compilation/testing uses GitHub's Windows runner.
+
 Version: 0.2.0 development. Target: Windows 10/11 x64. Original-source license: MIT
 by the owner's M2 instruction; prior GPL-tagged history remains historical.
 

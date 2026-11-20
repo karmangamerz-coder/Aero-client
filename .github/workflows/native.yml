@@ -1,0 +1,44 @@
+name: Native Rust launcher
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Core tests
+        run: cargo test --locked -p aero-core
+      - name: Build standalone launcher and CLI
+        run: cargo build --locked --release --workspace
+      - name: Native dependency inventory
+        run: cargo metadata --locked --format-version 1 > target/dependencies.json
+      - name: Assemble portable development package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force target/portable | Out-Null
+          Copy-Item target/release/aero-launcher.exe,target/release/aero-cli.exe,LICENSE,THIRD_PARTY_LICENSES.md target/portable
+          Copy-Item third-party target/portable/third-party -Recurse
+          Compress-Archive target/portable/* target/AeroClient-Portable.zip
+          $hash = (Get-FileHash target/AeroClient-Portable.zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  AeroClient-Portable.zip" | Set-Content target/SHA256SUMS.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: aero-native-windows
+          path: |
+            target/AeroClient-Portable.zip
+            target/SHA256SUMS.txt
+            target/dependencies.json
+          if-no-files-found: error

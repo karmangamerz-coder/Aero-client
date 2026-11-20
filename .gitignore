@@ -39,3 +39,4 @@ instances/
 metadata/
 shared/
 *.part
+/target/
