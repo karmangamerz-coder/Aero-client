@@ -1,0 +1,51 @@
+name: Build and package
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Build, unit tests and native executable
+        shell: bash
+        run: ./gradlew --no-daemon clean build :launcher:packageNative
+      - name: Launcher smoke test
+        shell: bash
+        run: java -cp launcher/build/classes/java/main org.aeroclient.launcher.AeroLauncher --self-check
+      - name: Verify JAR reproducibility
+        shell: bash
+        run: |
+          mkdir -p build
+          python -c "import hashlib,pathlib,json; pathlib.Path('build/jar-hashes.json').write_text(json.dumps({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in pathlib.Path('.').glob('*/build/libs/*.jar')}))"
+          ./gradlew --no-daemon :launcher:jar :launcher:sourcesJar :client:jar :client:sourcesJar --rerun-tasks
+          python -c "import hashlib,pathlib,json; old=json.loads(pathlib.Path('build/jar-hashes.json').read_text()); assert old and all(hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()==h for p,h in old.items()), 'JAR reproducibility failed'"
+      - name: Bundle release artifacts and SHA-256 checksums
+        run: python scripts/bundle_release.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aero-${{ matrix.os }}
+          path: build/release/*
+          if-no-files-found: error
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tests-${{ matrix.os }}
+          path: '*/build/reports/tests/'

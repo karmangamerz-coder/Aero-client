@@ -1,0 +1,33 @@
+plugins { id 'base' }
+
+allprojects {
+    group = 'org.aeroclient'
+    version = rootProject.property('version')
+}
+subprojects {
+    apply plugin: 'java-library'
+    java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+    dependencyLocking { lockAllConfigurations() }
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            def requestedVersion = requested.version ?: ''
+            if (requestedVersion.contains('+') || requestedVersion.contains('SNAPSHOT') ||
+                requestedVersion.startsWith('latest.') || requestedVersion.contains('[') ||
+                requestedVersion.contains('(')) {
+                throw new GradleException("Only fixed release dependency versions are allowed: ${requested}")
+            }
+        }
+    }
+    dependencies {
+        testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
+    }
+    tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+    tasks.withType(Test).configureEach { useJUnitPlatform() }
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+    java { withSourcesJar() }
+    tasks.withType(Jar).configureEach { from(rootProject.file('LICENSE')) }
+}

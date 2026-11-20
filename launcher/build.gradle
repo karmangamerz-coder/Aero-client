@@ -1,0 +1,22 @@
+plugins { id 'application' }
+application { mainClass = 'org.aeroclient.launcher.AeroLauncher' }
+tasks.named('jar') { manifest { attributes 'Main-Class': application.mainClass.get() } }
+tasks.register('packageNative', Exec) {
+    dependsOn tasks.named('jar')
+    def destination = layout.buildDirectory.dir('native')
+    inputs.file(tasks.named('jar').flatMap { it.archiveFile })
+    outputs.dir(destination)
+    doFirst {
+        delete destination
+        def javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath
+        def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+        commandLine javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile,
+            '--type', 'app-image', '--name', 'AeroClient',
+            '--app-version', project.version.toString(),
+            '--input', tasks.named('jar').get().destinationDirectory.get().asFile,
+            '--main-jar', tasks.named('jar').get().archiveFileName.get(),
+            '--main-class', application.mainClass.get(),
+            '--add-modules', 'java.base,java.desktop',
+            '--dest', destination.get().asFile
+    }
+}
