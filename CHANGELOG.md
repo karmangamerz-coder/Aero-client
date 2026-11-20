@@ -2,7 +2,31 @@
 
 This project uses Semantic Versioning. Dates use ISO 8601.
 
-## Unreleased
+## 0.3.0 — 2026-11-20
+
+### Added
+- Native Freya/Skia launcher with an Aero Light, Aero Dark and Aero Lite design system:
+  glass surfaces, glossy green launch control, 64 px icon rail, compact top bar and a
+  status strip with live installation progress.
+- Home with original pointer-rotated explorer preview and a collapsible 24 % news panel;
+  dedicated instance management screen holding the advanced installation settings and the
+  verified installation plan.
+- Per-instance memory and Java overrides stored in the instance manifest, with validation
+  and backward-compatible loading of older manifests.
+- Session activity log and read-only installation plan view (`clientSha1`, asset index,
+  library count, chosen runtime).
+
+### Changed
+- Rust workspace is the primary launcher implementation; the JavaFX launcher is retained
+  as a fallback until Windows parity is confirmed.
+- `reqwest` now uses rustls instead of the platform OpenSSL (ADR 0006).
+- News, discovery and downloads pages never fabricate content; empty states explain when
+  nothing was fetched.
+
+### Fixed
+- Launcher UI no longer borrows page state across the app root, removing a hook-order risk
+  in the prototype.
+- Core tests cover manifest migration and per-instance override validation.
 
 ## 0.2.0 — 2026-11-20
 

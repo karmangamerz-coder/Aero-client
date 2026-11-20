@@ -9,6 +9,16 @@ never sacrifice correctness or security to reduce cost.
 - M2-R supersedes the launcher stack: Rust + Freya + Skia in a Cargo workspace, Tokio,
   Reqwest and Serde. Keep the in-game client Java. Retain JavaFX fallback until Rust
   parity is validated; no Tauri, Electron, Chromium or JavaFX in the replacement.
+- Launcher layout: `native/core` owns services and safety; `native/launcher/src` splits
+  into `design.rs` (tokens + custom controls), `shell.rs` (rail/top bar/status strip),
+  `pages.rs` (pure page composition) and `ui.rs` (single owner of reactive state). Keep
+  page functions hook-free and event-driven; never add a render timer, polling loop or
+  periodic metadata request. Per-instance advanced settings belong in the instance
+  manifest (`memory_mib`, `java_path`), not in global preferences.
+- Verify with `cargo test -p aero-core` and `cargo check --workspace` (zero warnings).
+  GUI linking needs the platform GUI dev libraries; the Windows workflow remains the
+  authority for release builds. TLS uses rustls, not the OS trust store — see ADR 0006
+  before changing the HTTP stack.
 - Do not copy GPL OneLauncher source or branding. Architecture reference only.
 - Standalone native distribution uses cargo-packager/NSIS in M9; no launcher Java needed.
 - Original code is MIT as directed by the owner for M2; third-party licenses remain intact.

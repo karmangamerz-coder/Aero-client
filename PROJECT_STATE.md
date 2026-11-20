@@ -1,44 +1,62 @@
 # Project state
 
-## Active M2-R migration
-Rust workspace under `native/core` and `native/launcher` is being validated alongside
-the retained JavaFX launcher. Original implementation uses Freya 0.5.3/Skia, Tokio,
-Reqwest and Serde; no OneLauncher source/assets were copied. OneLauncher README was
-consulted only for high-level workspace/packaging architecture. Java client stays Java.
-The previous Java 1.8.9 Forge installation completed with READY status. Rust end-to-end
-parity and redesigned UI validation are pending; do not retire JavaFX yet.
-Local C++ build toolchain installation was blocked by automatic approval policy;
-native compilation/testing uses GitHub's Windows runner.
+## Current milestone
+M2 (installation, runtimes, instances) is complete in code and verified by tests plus a
+live official-metadata check. M2-R (native Rust migration) is **code complete and
+type-verified**; Windows native launch, visual QA and measured idle usage are still
+pending, so the JavaFX launcher is retained as a fallback and is not removed yet.
 
-Version: 0.2.0 development. Target: Windows 10/11 x64. Original-source license: MIT
-by the owner's M2 instruction; prior GPL-tagged history remains historical.
+Version: 0.3.0 development. Target: Windows 10/11 x64. Original-source license: MIT by the
+owner's M2 instruction; third-party components keep their own licenses.
 
-## Baseline and current implementation
-The actual M1 repository contained a Swing shell, not JavaFX. The M2 UI layer replaces
-that shell while retaining LauncherSettings, SettingsStore, client core and their tests.
-No unrelated user changes were present at task start; main matched origin/main.
+## What exists
+- `native/core` — `aero-core`: official metadata, verified downloads, libraries/natives,
+  Fabric and legacy Forge profiles, managed Java runtimes, UUID instances, settings.
+- `native/launcher` — `aero-launcher`: Freya 0.5.3 + Skia desktop UI.
+  - `design.rs`: three Aero palettes (Light/Dark/Lite), glass surfaces, custom buttons with
+    hover/press/focus/disabled states, chips, progress, rail icons, original SVG artwork.
+  - `shell.rs`: 64 px icon-only rail with tooltips, 56 px top bar with account/instance/
+    version state, 26 px status strip with live progress.
+  - `pages.rs`: Play (character preview + contextual launch/install + collapsible 24 % news
+    panel), Library (create/search/list), instance detail (installation, runtime overrides,
+    verified plan, rename/duplicate/trash), Discover (Modrinth search), Downloads (current
+    activity + session log), Settings (theme, news, memory, Java, accessibility).
+  - `backend.rs`: single-threaded command queue over Tokio (2 workers) publishing snapshots
+    through a watch channel; the UI thread never performs disk, network or hashing work.
+- `launcher/`, `client/` — retained JavaFX launcher and independent Java client settings
+  library, buildable with the Gradle wrapper.
+- Installation safety: HTTPS host allowlist, redirect re-validation, SHA-1 verification,
+  `.part` resume, bounded retries, cancellation, atomic final writes, path/link/archive
+  checks, exclusive installation lock, trash-based removal.
 
-- JavaFX `AeroApplication` and `aero.css`: five pages, Aero design, local preferences.
-- `install/Downloads`: allowlisted HTTPS, integrity, retries, resumable partial files, cancel.
-- `install/Metadata`: official cached manifests and exact version lookup.
-- `install/Libraries`, `Loaders`: Windows rules/natives, Fabric metadata, Forge legacy profile.
-- `install/Runtimes`: detected/custom Java compatibility, official component-driven shared runtime.
-- `install/Instances`, `Installer`: isolated UUID folders, process lock, status and repair.
-- JavaFX is bundled as application dependencies; jlink supplies the launcher runtime.
-- Game data is external to the repository. Play/authentication remain unimplemented (M3).
+## Verification evidence (2026-11-20)
+- `cargo test -p aero-core`: **17 passed, 0 failed** (download verification, resume,
+  retry, corruption, cancellation, path/zip safety, trust policy, Maven/Windows rules,
+  instance isolation/duplication, settings validation, per-instance overrides, legacy
+  manifests).
+- `cargo check --workspace`: clean, zero warnings, Rust 1.100.0 (pinned, edition 2024).
+- `cargo fmt --all -- --check` clean.
+- Live metadata (`piston-meta` version manifest): `1.8.9` (2015-12-03), `1.21.11`
+  (2025-12-09), `26.2` (2026-06-16), `26.3` (2026-09-15) all exist as releases; current
+  latest release is `26.3`. Fabric pins come from `meta.fabricmc.net` at install time.
+- Native binary link was **not** possible in the Linux development container: the GUI
+  development libraries (`freetype`, `fontconfig`, `EGL`, `GL`, `wayland-egl`, `GLESv2`)
+  are absent and there is no root access. Type-checking passes for the same code; the
+  Windows workflow in `.github/workflows/native.yml` produces the release build.
 
-## Verification in progress
-Official metadata checked 2026-11-20: 1.8.9 (Java 8), 1.21.11 (Java 21), 26.2/26.3
-(Java 25) are release entries. Fabric metadata lists stable loaders for modern targets.
-Do not treat this observation as permanent: the launcher checks actual metadata.
-Initial compilation and inherited tests passed before the new failure/recovery suite.
-Final test/build/integration results will be recorded before marking M2 complete.
+## Known limitations
+- No Microsoft login, entitlement check, game launch, classpath resolution (M3).
+- Play shows a disabled glossy `Launch` button until M3; installation still works.
+- Windows-only game installation (`install` asserts `cfg!(windows)`); other hosts build
+  and test the shell only.
+- No idle-RAM/idle-CPU measurement yet: needs the Ryzen 5 5500U reference machine.
+- No visual QA of the Freya window yet (headless container).
+- rustls is used instead of the OS trust store; see ADR 0006.
+- News items are release metadata and repository release titles only — never fabricated.
 
-## Known boundaries and next steps
-- No Microsoft login, entitlement checking, game launch, marketplace or production installer.
-- Installation targets Windows x64; other hosts build/test the shell only.
-- Full installation verification and visual QA are pending during development.
-- Future M3 must interpret inherited profiles and library overrides; M2 stores source
-  profiles and dependency inventory, not an executable game launch command.
-- Public GitHub: https://github.com/karmangamerz-coder/Aero-client, main.
-- Complete M2 verification, commit and verified push; stop before M3.
+## Next steps
+1. Run `cargo run --release -p aero-launcher` on Windows 11 x64, complete a 1.8.9 Forge and
+   a 26.3 Fabric install through the UI, and record idle memory/CPU.
+2. Visual QA of the three themes and small-window layout; fix any spacing issues found.
+3. Only after parity is recorded: remove the JavaFX launcher, keep the Java client.
+4. Then stop: M3 requires explicit approval.
