@@ -278,6 +278,39 @@ fn settings_reject_invalid_memory_and_theme() {
     settings.appearance = "bad".into();
     assert!(settings.validate().is_err());
 }
+#[tokio::test]
+async fn duplicate_copies_saves_without_sharing_writable_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = Store::new(dir.path().into());
+    let original = store
+        .create("World", "1.8.9", Loader::Vanilla, false)
+        .await
+        .unwrap();
+    let source = store
+        .directory(&original.id)
+        .await
+        .unwrap()
+        .join("game/saves/level.dat");
+    tokio::fs::write(&source, b"original world").await.unwrap();
+    let copy = store
+        .duplicate(&original.id, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_ne!(copy.id, original.id);
+    let destination = store
+        .directory(&copy.id)
+        .await
+        .unwrap()
+        .join("game/saves/level.dat");
+    assert_eq!(
+        tokio::fs::read(&destination).await.unwrap(),
+        b"original world"
+    );
+    tokio::fs::write(destination, b"modified copy")
+        .await
+        .unwrap();
+    assert_eq!(tokio::fs::read(source).await.unwrap(), b"original world");
+}
 #[test]
 fn java_versions_are_metadata_compatible() {
     assert_eq!(runtime::major_version("1.8.0_51").unwrap(), 8);

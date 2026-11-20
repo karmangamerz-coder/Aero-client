@@ -259,6 +259,62 @@ impl Store {
         self.save(&updated).await?;
         Ok(updated)
     }
+    /// Copies user content to a new identity. Never follows links or shares writable files.
+    pub async fn duplicate(&self, id: &str, cancel: &crate::CancellationToken) -> Result<Instance> {
+        let original = self.read(id).await?;
+        let copy = self
+            .create(
+                &format!("{} (copy)", original.name),
+                &original.version,
+                original.loader,
+                false,
+            )
+            .await?;
+        let source = self.directory(id).await?;
+        let destination = self.directory(&copy.id).await?;
+        let result: Result<()> = async {
+            let mut pending = vec!["game".to_string()];
+            let mut count = 0usize;
+            while let Some(relative) = pending.pop() {
+                ensure!(!cancel.is_cancelled(), "Copy cancelled");
+                let from = safe_path(&source, &relative).await?;
+                let to = safe_path(&destination, &relative).await?;
+                let metadata = fs::symlink_metadata(&from).await?;
+                if metadata.is_dir() {
+                    fs::create_dir_all(&to).await?;
+                    let mut entries = fs::read_dir(from).await?;
+                    while let Some(entry) = entries.next_entry().await? {
+                        count += 1;
+                        ensure!(
+                            count <= 100_000,
+                            "Instance has too many files to duplicate safely"
+                        );
+                        let name = entry
+                            .file_name()
+                            .into_string()
+                            .map_err(|_| anyhow::anyhow!("Non-Unicode filename"))?;
+                        pending.push(format!("{relative}/{name}"));
+                    }
+                } else {
+                    ensure!(metadata.is_file(), "Unsupported instance file");
+                    if let Some(parent) = to.parent() {
+                        fs::create_dir_all(parent).await?;
+                    }
+                    tokio::select! {
+                        _ = cancel.cancelled() => anyhow::bail!("Copy cancelled"),
+                        copied = fs::copy(&from, &to) => { copied?; }
+                    }
+                }
+            }
+            Ok(())
+        }
+        .await;
+        if let Err(error) = result {
+            let _ = self.quarantine(&copy.id).await;
+            return Err(error);
+        }
+        Ok(copy)
+    }
     pub async fn rename(&self, id: &str, name: &str) -> Result<()> {
         ensure!(
             !name.trim().is_empty() && name.len() <= 160 && !name.chars().any(char::is_control),

@@ -19,6 +19,14 @@ jobs:
         run: rustup toolchain install 1.100.0 --profile minimal --component rustfmt --component clippy
       - name: Check formatting
         run: cargo fmt --all -- --check
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: native-${{ runner.os }}-1.100-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: native-${{ runner.os }}-1.100-${{ hashFiles('Cargo.lock') }}-
       - name: Core tests
         run: cargo test --locked -p aero-core
       - name: Build standalone launcher and CLI
