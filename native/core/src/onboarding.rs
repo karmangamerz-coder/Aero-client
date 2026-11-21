@@ -170,10 +170,13 @@ pub fn validate_step(step: usize, answers: &Onboarding) -> Result<()> {
     match step {
         // Welcome, optional account and hardware recommendation have no required input.
         0..=2 => Ok(()),
-        3 => ensure!(
-            ["Aero Light", "Aero Dark", "Aero Lite"].contains(&answers.appearance.as_str()),
-            "Choose an appearance preset"
-        ),
+        3 => {
+            ensure!(
+                ["Aero Light", "Aero Dark", "Aero Lite"].contains(&answers.appearance.as_str()),
+                "Choose an appearance preset"
+            );
+            Ok(())
+        }
         4 => {
             ensure!(
                 crate::TARGETS.contains(&answers.version.as_str()),
