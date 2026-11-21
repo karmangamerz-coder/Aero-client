@@ -50,13 +50,18 @@ tasks.register('packageNative', Exec) {
         delete destination
         def javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath
         def windows = System.getProperty('os.name').toLowerCase().contains('windows')
-        commandLine javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile,
+        def mac = System.getProperty('os.name').toLowerCase().contains('mac')
+        def arguments = [
             '--type', 'app-image', '--name', 'AeroClient',
-            '--app-version', project.version.toString(),
             '--input', layout.buildDirectory.dir('native-input').get().asFile,
             '--main-jar', tasks.named('jar').get().archiveFileName.get(),
             '--main-class', application.mainClass.get(),
             '--runtime-image', layout.buildDirectory.dir('launcher-runtime').get().asFile,
             '--dest', destination.get().asFile
-    }
+        ]
+        // macOS rejects pre-1.0 semantic versions as CFBundleShortVersionString.
+        // Let jpackage use its valid 1.0 bundle default while project artifacts keep 0.x.
+        if (!mac) arguments.addAll(4, ['--app-version', project.version.toString()])
+        commandLine javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile, arguments
+   }
 }

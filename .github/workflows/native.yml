@@ -36,10 +36,13 @@ jobs:
       - name: Assemble portable development package
         shell: pwsh
         run: |
+          $portable = Resolve-Path target | ForEach-Object { Join-Path $_ 'portable' }
+          if (-not $portable.StartsWith((Resolve-Path target).Path)) { throw 'Unsafe package path' }
+          Remove-Item -LiteralPath $portable -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force target/portable | Out-Null
           Copy-Item target/release/aero-launcher.exe,target/release/aero-cli.exe,LICENSE,THIRD_PARTY_LICENSES.md target/portable
           Copy-Item third-party target/portable/third-party -Recurse
-          Compress-Archive target/portable/* target/AeroClient-Portable.zip
+          Compress-Archive target/portable/* target/AeroClient-Portable.zip -Force
           $hash = (Get-FileHash target/AeroClient-Portable.zip -Algorithm SHA256).Hash.ToLower()
           "$hash  AeroClient-Portable.zip" | Set-Content target/SHA256SUMS.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
