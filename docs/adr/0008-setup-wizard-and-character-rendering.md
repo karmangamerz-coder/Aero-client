@@ -11,15 +11,18 @@ in, with an original fallback when signed out, on hardware as modest as a Ryzen 
 with integrated graphics.
 
 ## Decision
-1. **Setup state is a separate record.** `onboarding.json` stores the completion flag,
+1. **Setup state is a separate, backend-owned record.** `onboarding.json` stores the completion flag,
    the current step and the answers (version, loader, memory, appearance, performance,
    automatic Java). Every Back/Next/Skip writes it atomically, so a crash or a close
    resumes at the same step. Completion hides the wizard permanently; Settings can reset
-   it on purpose.
+   it on purpose. The UI renders this persisted snapshot rather than maintaining a second
+   local step counter. Navigation includes the expected current step, making stale or
+   repeatedly queued events idempotent.
 2. **The wizard never blocks on the network.** Sign-in is optional and runs as the same
    supervised task as the main window; installation is explicit and can be deferred, in
-   which case only the instance is created. Hardware detection runs once on a blocking
-   worker.
+   which case no instance is modified. Finish first persists the selected settings and
+   instance, then marks setup complete; failure keeps the wizard open with a visible error.
+   Hardware detection runs once on a blocking worker.
 3. **Character rendering is CPU-only.** A skin (64×64 PNG, or legacy 64×32) is decoded
    once, a standing character is composed from its faces with a hint of side and top
    geometry, and the result is encoded as a PNG that Skia decodes and caches. There is no

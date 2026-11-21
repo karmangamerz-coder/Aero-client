@@ -2,9 +2,9 @@
 
 ## Current milestone
 M2.1 (launcher redesign), M3 (authentication and launching) and M3-S (first-launch setup)
-are **implemented and type/test verified** in the Rust launcher. They are not yet verified
-by a human on Windows: sign-in against Microsoft, an actual game launch and the visual
-result still need the reference machine, so the JavaFX launcher stays as a fallback.
+are **implemented, regression-tested and interactively verified** in the Rust launcher on
+the Windows reference machine. Real Microsoft sign-in, an actual game launch and complete
+multi-DPI visual QA remain, so the JavaFX launcher stays as a fallback.
 
 Version: 0.4.0 development. Target: Windows 10/11 x64. Original-source license: MIT.
 
@@ -25,7 +25,8 @@ Version: 0.4.0 development. Target: Windows 10/11 x64. Original-source license: 
     character PNG (no GPU work, no per-frame rendering).
   - `hardware.rs`: one-shot CPU/RAM/storage/OS detection and a read-only Windows WMI GPU
     query, plus conservative memory/performance recommendations.
-  - `onboarding.rs`: setup answers, resumable step and completion flag (`onboarding.json`).
+  - `onboarding.rs`: validated setup state machine, resumable step and completion flag
+    (`onboarding.json`), including guarded transitions and a safe defer path.
 - `native/launcher` — `aero-launcher` (Freya 0.5.3 + Skia):
   - `design.rs`: Aero Light/Dark/Lite palettes, glass surfaces, glossy green Launch control,
     custom buttons, chips, progress, outline icons, static landscape and character view.
@@ -42,15 +43,24 @@ Version: 0.4.0 development. Target: Windows 10/11 x64. Original-source license: 
   library, buildable with the Gradle wrapper.
 
 ## Verification evidence (2026-11-21)
-- `cargo test --locked -p aero-core`: **24 passed, 0 failed** (previous 17 plus argument
-  substitution, platform rules, memory resolution, account store behaviour, skin
-  composition/PNG encoding, onboarding validation and hardware recommendations).
+- `cargo test --locked -p aero-core`: **30 passed, 0 failed**, including setup validation,
+  guarded Back/Next/Skip transitions, completion and defer regression coverage.
 - `cargo check --locked --workspace`: clean, **zero warnings**, Rust 1.100.0.
 - `cargo fmt --all -- --check`: clean.
 - Live official metadata re-verified previously: `1.8.9`, `1.21.11`, `26.2`, `26.3`.
-- **Not verified:** Windows-native build and launch, real Microsoft sign-in, a real game
-  session, DPAPI behaviour, visual QA and idle memory/CPU measurements. The Windows release
-  workflow remains the authority for linking and packaging.
+- GitHub Actions Windows release build `44888560348`: release workspace compiled, tests
+  passed and the portable artifact plus SHA-256 manifest were generated successfully.
+- Interactive Windows 11 verification: Next, Back, Skip, appearance selection, version and
+  loader selection, performance, Summary and **Create instance only** all worked. The main
+  launcher opened, and restarting with the same data opened the launcher directly rather
+  than repeating setup. Persisted setup and instance records matched the selected values.
+- Reference-machine idle sample after restart: 130.8 MiB working set, 119 MiB private
+  memory and about 0.16% of one CPU core over 10 seconds. This is a single observation,
+  not a benchmark; GPU use was not measured.
+- **Not verified:** real Microsoft sign-in and token refresh/DPAPI storage, a real game
+  session, or visual QA at 125% and 150% scaling. UI transitions were checked through the
+  Windows accessibility tree at the current display scale; screenshot capture was not
+  reliable enough to claim pixel-level clipping verification.
 
 ## Known limitations
 - Sign-in uses public client id `00000000402b5328` by default (the public Minecraft launcher
@@ -67,10 +77,10 @@ Version: 0.4.0 development. Target: Windows 10/11 x64. Original-source license: 
   shell and services only.
 
 ## Next steps
-1. Run `cargo run --release -p aero-launcher` on Windows 11 x64 and complete sign-in for an
-   account that owns Minecraft.
-2. Visual QA of the three themes, the 880×560 minimum window and DPI scaling; fix spacing.
-3. Launch 1.8.9 Forge and 26.3 Fabric, confirm logs, cancellation and crash handling.
-4. Record idle memory/CPU on the Ryzen 5 5500U reference machine, then retire the JavaFX
-   launcher once parity is recorded.
+1. Complete sign-in on Windows 11 x64 with an account that owns Minecraft and verify DPAPI
+   storage, refresh, switching and removal without exposing tokens.
+2. Perform visual QA of all three themes at 880×560 and 1180×760 at 100%, 125% and 150%.
+3. Launch 1.8.9 Forge and 26.3 Fabric, confirming logs, cancellation and crash handling.
+4. Repeat performance measurements under a documented protocol, then decide whether the
+   JavaFX fallback can be retired.
 5. Then stop: M4 requires explicit approval.

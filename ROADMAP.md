@@ -27,12 +27,16 @@
 - [x] Live game logs, crash-report discovery, launch cancellation and readable errors.
 - [ ] Real sign-in and real 1.8.9 Forge / 26.3 Fabric launches on the reference machine.
 
-## M3-S — first-launch setup (implemented, runtime verification pending)
+## M3-S — first-launch setup (implemented and Windows runtime verified)
 - [x] Seven steps: welcome, Microsoft account (skippable, never blocks browsing), hardware
   detection with recommendations, appearance with live previews, Minecraft version/loader/
   Java management, performance preset, summary with create/install/defer.
 - [x] Back/Next/Skip controls, progress saved per step, resume after restart, completion
   persisted, re-runnable from Settings, never repeated automatically.
+- [x] Backend-owned state machine with expected-step guards prevents repeated queued clicks;
+  Finish persists a completed record and Setup later defers without mutating an instance.
+- [x] Interactive Windows run completed through Summary, created an instance, entered the
+  main launcher and confirmed setup did not repeat after restart.
 - [x] All work happens off the UI thread; no Aero account, no ads and no telemetry.
 - [ ] Custom game folder selection: deferred to M4 with instance management (the wizard
   states this instead of pretending the setting is wired up).

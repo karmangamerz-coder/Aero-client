@@ -35,6 +35,15 @@ This project uses Semantic Versioning. Dates use ISO 8601.
 ### Fixed
 - The launcher no longer holds a watch-channel borrow across an await point, so the
   backend future is `Send` and sign-in/launch tasks compile on Tokio.
+- Setup navigation now has one durable source of truth. Expected-step guards make repeated
+  clicks idempotent, validation covers every answer, errors are visible, and Finish writes
+  completion only after settings and instance creation succeed.
+- Setup later now exits safely without silently changing an instance; incompatible loader
+  selections reset when the Minecraft version changes.
+- Native Windows packaging removes stale fixed-name output before archiving and forces the
+  archive write, avoiding failures caused by a restored Actions cache.
+- Legacy jpackage arguments are passed as a flat command, and macOS uses a compatible
+  bundle version while project artifacts retain Semantic Versioning.
 
 ## 0.3.0 — 2026-11-20
 

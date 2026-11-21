@@ -29,8 +29,9 @@ Java installation is required.
 
 Authentication requires an account that owns Minecraft: Java Edition. Aero verifies
 ownership with Microsoft and provides no offline or cracked launch path. Sign-in, launching
-and the setup wizard are implemented and type/test verified but have not yet been exercised
-on Windows by a human; see [PROJECT_STATE](PROJECT_STATE.md). No game files, downloaded
+and the setup wizard are implemented. The full setup flow and restart persistence were
+interactively verified on Windows; real sign-in and game launching still require an owning
+account and remain pending; see [PROJECT_STATE](PROJECT_STATE.md). No game files, downloaded
 runtimes, credentials or user data are redistributed in this repository.
 
 Downloads support integrity checks, cancellation, bounded retries, partial-file resume,
@@ -46,7 +47,7 @@ this; packaging is M9.
 
 ```powershell
 cargo run --release -p aero-launcher          # desktop launcher
-cargo test -p aero-core                       # 24 installation, auth, launch and skin tests
+cargo test -p aero-core                       # 30 core and setup regression tests
 cargo run -p aero-core --bin aero-cli -- versions
 cargo run -p aero-core --bin aero-cli -- install 26.3 fabric
 cargo build --release --workspace             # aero-launcher.exe + aero-cli.exe
@@ -85,7 +86,8 @@ See [PRIVACY](PRIVACY.md), [architecture](docs/ARCHITECTURE.md),
 
 ## Distribution
 
-The native launcher is a single executable today. cargo-packager + NSIS stand-alone
-installers (`AeroClient-Setup.exe`, portable ZIP, `SHA256SUMS.txt`) remain M9 work. The
+The native launcher is a single executable today, and CI produces a portable Windows ZIP
+with SHA-256 checksums. A polished cargo-packager/NSIS stand-alone installer
+(`AeroClient-Setup.exe`) remains M9 work. The
 JavaFX `:launcher:packageNative` task still produces a development app image with a bundled
 launcher runtime.
