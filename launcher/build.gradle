@@ -62,6 +62,6 @@ tasks.register('packageNative', Exec) {
         // macOS rejects pre-1.0 semantic versions as CFBundleShortVersionString.
         // Let jpackage use its valid 1.0 bundle default while project artifacts keep 0.x.
         if (!mac) arguments.addAll(4, ['--app-version', project.version.toString()])
-        commandLine javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile, arguments
+        commandLine([javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile] + arguments)
    }
 }
