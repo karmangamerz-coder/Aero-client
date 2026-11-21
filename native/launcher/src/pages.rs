@@ -1056,8 +1056,7 @@ fn wizard_preview(name: &str, selected: bool) -> Rect {
 }
 
 pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
-    let step = (*ui.w_step.read()).min(onboarding::STEPS - 1);
-    let mut w_step = ui.w_step;
+    let step = s.onboarding.current_step();
     let mut version = ui.version;
     let mut loader = ui.loader;
     let mut w_memory = ui.memory;
@@ -1079,12 +1078,6 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
         installation_directory: s.storage.clone(),
         auto_java: *w_auto.read(),
     };
-    let make = |step: usize| onboarding::Progress {
-        completed: false,
-        step: step as u8,
-        answers: base.clone(),
-    };
-
     let mut content = rect().width(Size::fill()).spacing(10.);
     match step {
         0 => {
@@ -1241,9 +1234,16 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                             Select::new().selected_item(version.read().clone()).children(TARGETS.iter().map(|value| {
                                 let label = (*value).to_owned();
                                 let picked = label.clone();
+                                let mut selected_loader = loader;
                                 MenuItem::new()
                                     .selected(*version.read() == label)
-                                    .on_press(move |_| version.set(picked.clone()))
+                                    .on_press(move |_| {
+                                        let current_loader = selected_loader.read().clone();
+                                        if !onboarding::compatible(&picked, &current_loader) {
+                                            selected_loader.set("Vanilla".into());
+                                        }
+                                        version.set(picked.clone());
+                                    })
                                     .child(label)
                             })),
                         ))
@@ -1270,6 +1270,17 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     10.5,
                     p,
                 ))
+                .child(action("Check official availability", p).enabled(!s.busy).on_press({
+                    let backend = backend.clone();
+                    move |_| backend.send(Command::RefreshVersions)
+                }))
+                .maybe(!s.versions.is_empty(), |r| {
+                    r.child(dim(
+                        format!("Available now: {}", s.versions.join(", ")),
+                        10.5,
+                        p,
+                    ))
+                })
                 .child(
                     rect().horizontal().spacing(8.).cross_align(Alignment::Center)
                         .child(dim("Automatic Java runtime", 11.5, p))
@@ -1320,13 +1331,13 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     rect().horizontal().spacing(8.)
                         .child(action("Create instance and install", p).enabled(!s.busy)                        .on_press({
                             let backend = backend.clone();
-                            let answers = make(6);
-                            move |_| backend.send(Command::FinishSetup(answers.clone(), true))
+                            let answers = base.clone();
+                            move |_| backend.send(Command::FinishSetup(step, answers.clone(), true))
                         }))
                         .child(action("Create instance only", p).enabled(!s.busy).on_press({
                             let backend = backend.clone();
-                            let answers = make(6);
-                            move |_| backend.send(Command::FinishSetup(answers.clone(), false))
+                            let answers = base.clone();
+                            move |_| backend.send(Command::FinishSetup(step, answers.clone(), false))
                         })),
                 );
         }
@@ -1338,12 +1349,15 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
         .spacing(8.)
         .cross_align(Alignment::Center);
     if step > 0 {
-        nav = nav.child(action("Back", p).on_press({
+        nav = nav.child(action("Back", p).enabled(!s.busy).on_press({
             let backend = backend.clone();
-            let value = make(step - 1);
+            let answers = base.clone();
             move |_| {
-                backend.send(Command::SaveSetup(value.clone()));
-                w_step.set(step - 1);
+                backend.send(Command::NavigateSetup(
+                    onboarding::Direction::Back,
+                    step,
+                    answers.clone(),
+                ));
             }
         }));
     } else {
@@ -1351,12 +1365,15 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     }
     nav = nav.child(rect().width(Size::flex(1.)));
     if step == 1 {
-        nav = nav.child(ghost("Skip for now", p).on_press({
+        nav = nav.child(ghost("Skip for now", p).enabled(!s.busy).on_press({
             let backend = backend.clone();
-            let value = make(2);
+            let answers = base.clone();
             move |_| {
-                backend.send(Command::SaveSetup(value.clone()));
-                w_step.set(2);
+                backend.send(Command::NavigateSetup(
+                    onboarding::Direction::Skip,
+                    step,
+                    answers.clone(),
+                ));
             }
         }));
     }
@@ -1377,34 +1394,43 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .border_fill(p.green_border)
                         .focus_border_fill(p.accent),
                 )
+                .enabled(!s.busy)
                 .child(strong("Next", 14., Color::WHITE))
                 .on_press({
                     let backend = backend.clone();
-                    let value = make(step + 1);
+                    let answers = base.clone();
                     move |_| {
-                        backend.send(Command::SaveSetup(value.clone()));
-                        w_step.set(step + 1);
+                        backend.send(Command::NavigateSetup(
+                            onboarding::Direction::Next,
+                            step,
+                            answers.clone(),
+                        ));
                     }
                 }),
         );
     }
-    if step > 3 {
-        nav = nav.child(
-            ghost(
-                if step == 6 {
-                    "Open the launcher"
+    nav = nav.child(
+        ghost(
+            if step == onboarding::LAST_STEP {
+                "Open the launcher"
+            } else {
+                "Set up later"
+            },
+            p,
+        )
+        .enabled(!s.busy)
+        .on_press({
+            let backend = backend.clone();
+            let answers = base.clone();
+            move |_| {
+                if step == onboarding::LAST_STEP {
+                    backend.send(Command::FinishSetup(step, answers.clone(), false));
                 } else {
-                    "Skip setup"
-                },
-                p,
-            )
-            .on_press({
-                let backend = backend.clone();
-                let value = make(6);
-                move |_| backend.send(Command::FinishSetup(value.clone(), false))
-            }),
-        );
-    }
+                    backend.send(Command::DeferSetup(step, answers.clone()));
+                }
+            }
+        }),
+    );
     let _ = w_auto;
 
     rect()
@@ -1429,6 +1455,9 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .child(step_dots(step, p)),
                 )
                 .child(content)
+                .maybe(!s.message.is_empty() && s.message != "Ready.", |r| {
+                    r.child(dim(s.message.clone(), 10.5, p))
+                })
                 .child(hairline(p))
                 .child(nav),
         )

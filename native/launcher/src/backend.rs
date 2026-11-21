@@ -87,8 +87,9 @@ pub enum Command {
     RemoveAccount(String),
     Launch(String),
     DetectHardware,
-    SaveSetup(onboarding::Progress),
-    FinishSetup(onboarding::Progress, bool),
+    NavigateSetup(onboarding::Direction, usize, onboarding::Onboarding),
+    FinishSetup(usize, onboarding::Onboarding, bool),
+    DeferSetup(usize, onboarding::Onboarding),
     ReopenSetup,
     Select(String),
     Target(String, Loader),
@@ -280,13 +281,11 @@ impl Backend {
                     command => {
                         let token = CancellationToken::new();
                         *shared_cancel.lock().unwrap() = token.clone();
-                        if !matches!(command, Command::SaveSetup(_)) {
-                            state.send_modify(|s| {
-                                s.busy = true;
-                                s.message = "Working…".into();
-                                s.progress = Progress::default();
-                            });
-                        }
+                        state.send_modify(|s| {
+                            s.busy = true;
+                            s.message = "Working…".into();
+                            s.progress = Progress::default();
+                        });
                         let result: Result<String, String> =
                             handle(installer.clone(), &state, command, &token).await;
                         let instances = installer.store.list().await;
@@ -543,10 +542,15 @@ async fn handle(
             state.send_modify(|s| s.hardware = Some(detected));
             Ok(format!("Detected {summary}"))
         }
-        Command::SaveSetup(progress) => {
+        Command::NavigateSetup(direction, expected_step, answers) => {
+            let progress = state
+                .borrow()
+                .onboarding
+                .navigate(expected_step, direction, answers)
+                .map_err(|e| format!("Cannot change setup step: {e:#}"))?;
             onboarding::save(&installer.store.root, &progress)
                 .await
-                .map_err(|e| format!("{e:#}"))?;
+                .map_err(|e| format!("Cannot save setup progress: {e:#}"))?;
             state.send_modify(|s| s.onboarding = progress);
             Ok(String::new())
         }
@@ -560,17 +564,22 @@ async fn handle(
             state.send_modify(|s| s.onboarding = progress);
             Ok("Setup restarted.".into())
         }
-        Command::FinishSetup(progress, install) => {
-            onboarding::save(&installer.store.root, &progress)
-                .await
-                .map_err(|e| format!("{e:#}"))?;
+        Command::FinishSetup(expected_step, answers, install) => {
+            let progress = state
+                .borrow()
+                .onboarding
+                .finish(expected_step, answers)
+                .map_err(|e| format!("Cannot finish setup: {e:#}"))?;
             let answers = progress.answers.clone();
             let mut settings = state.borrow().settings.clone();
             settings.appearance = answers.appearance.clone();
             settings.memory_mib = answers.memory_mib;
             settings.performance = answers.performance.clone();
             settings.low_performance = answers.performance == "Potato PC";
-            settings.save(&installer.store.root).await.ok();
+            settings
+                .save(&installer.store.root)
+                .await
+                .map_err(|e| format!("Cannot save launcher settings: {e:#}"))?;
             let loader = match answers.loader.as_str() {
                 "Fabric" => Loader::Fabric,
                 "Forge" => Loader::Forge,
@@ -591,6 +600,10 @@ async fn handle(
                     .map_err(|e| format!("{e:#}"))?,
             };
             let instance_id = instance.id.clone();
+            // Completion is committed only after all required durable state exists.
+            onboarding::save(&installer.store.root, &progress)
+                .await
+                .map_err(|e| format!("Cannot save setup completion: {e:#}"))?;
             state.send_modify(|s| {
                 s.settings = settings;
                 s.onboarding = progress;
@@ -635,6 +648,21 @@ async fn handle(
                 });
             }
             Ok("Setup complete.".into())
+        }
+        Command::DeferSetup(expected_step, answers) => {
+            let progress = state
+                .borrow()
+                .onboarding
+                .defer(expected_step, answers)
+                .map_err(|e| format!("Cannot defer setup: {e:#}"))?;
+            onboarding::save(&installer.store.root, &progress)
+                .await
+                .map_err(|e| format!("Cannot save setup choice: {e:#}"))?;
+            state.send_modify(|s| {
+                s.onboarding = progress;
+                s.message = "Setup deferred. You can run it again from Settings.".into();
+            });
+            Ok("Setup deferred. You can run it again from Settings.".into())
         }
     }
 }

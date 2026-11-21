@@ -28,7 +28,6 @@ pub struct Ui {
     pub rename: State<String>,
     pub inst_memory: State<String>,
     pub inst_java: State<String>,
-    pub w_step: State<usize>,
     pub w_perf: State<String>,
     pub w_auto: State<bool>,
 }
@@ -60,21 +59,20 @@ impl App for Aero {
             rename: use_state(String::new),
             inst_memory: use_state(String::new),
             inst_java: use_state(String::new),
-            w_step: use_state(|| snapshot.onboarding.step as usize),
             w_perf: use_state(|| snapshot.onboarding.answers.performance.clone()),
             w_auto: use_state(|| snapshot.onboarding.answers.auto_java),
         };
 
         // The appearance preset is the source of truth; changing it re-themes
         // every control at once.
-        if *ui.appearance.read() != settings.appearance {
+        if ui.theme.read().name != ui.appearance.read().as_str() {
             ui.theme.set(theme(&ui.appearance.read().clone()));
         }
         let p = palette(&ui.appearance.read().clone());
-        let index = if snapshot.onboarding.completed {
-            *ui.page.read()
-        } else {
+        let index = if snapshot.onboarding.needs_setup() {
             pages::WIZARD
+        } else {
+            *ui.page.read()
         };
 
         let mut root = rect()

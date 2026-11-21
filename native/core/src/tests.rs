@@ -500,16 +500,143 @@ fn skin_composition_produces_a_valid_png() {
 }
 
 #[test]
-fn onboarding_answers_are_validated() {
-    use crate::onboarding::{Onboarding, Progress, STEPS};
+fn onboarding_answers_and_loader_pairs_are_validated() {
+    use crate::onboarding::Onboarding;
     let answers = Onboarding::default();
     answers.validate().unwrap();
     let mut bad = answers.clone();
     bad.version = "0.0.0".into();
     assert!(bad.validate().is_err());
+    let mut incompatible = answers;
+    incompatible.loader = "Forge".into();
+    assert!(incompatible.validate().is_err());
+}
+
+#[test]
+fn every_valid_wizard_step_advances_exactly_once() {
+    use crate::onboarding::{Direction, LAST_STEP, Progress};
+    let answers = crate::onboarding::Onboarding::default();
     let mut progress = Progress::default();
-    progress.step = STEPS as u8;
-    assert!(progress.step as usize <= STEPS);
+    for expected in 0..LAST_STEP {
+        progress = progress
+            .navigate(expected, Direction::Next, answers.clone())
+            .unwrap();
+        assert_eq!(progress.current_step(), expected + 1);
+    }
+    assert!(progress.finish(LAST_STEP, answers).unwrap().completed);
+}
+
+#[test]
+fn wizard_back_skip_and_repeated_next_are_safe() {
+    use crate::onboarding::{Direction, Progress};
+    let answers = crate::onboarding::Onboarding::default();
+    let first = Progress::default()
+        .navigate(0, Direction::Next, answers.clone())
+        .unwrap();
+    assert!(
+        first.navigate(0, Direction::Next, answers.clone()).is_err(),
+        "a queued second click must not advance a second step"
+    );
+    let skipped = first.navigate(1, Direction::Skip, answers.clone()).unwrap();
+    assert_eq!(skipped.current_step(), 2);
+    let backed = skipped
+        .navigate(2, Direction::Back, answers.clone())
+        .unwrap();
+    assert_eq!(backed.current_step(), 1);
+    assert!(
+        Progress {
+            step: 3,
+            ..Default::default()
+        }
+        .navigate(3, Direction::Skip, answers)
+        .is_err()
+    );
+}
+
+#[test]
+fn invalid_minecraft_selection_stays_on_its_step() {
+    use crate::onboarding::{Direction, Progress};
+    let progress = Progress {
+        step: 4,
+        ..Default::default()
+    };
+    let mut answers = progress.answers.clone();
+    answers.loader = "Forge".into();
+    assert!(progress.navigate(4, Direction::Next, answers).is_err());
+    assert_eq!(progress.current_step(), 4);
+}
+
+#[test]
+fn hardware_or_metadata_failure_does_not_lock_setup() {
+    use crate::onboarding::{Direction, Progress};
+    let answers = crate::onboarding::Onboarding::default();
+    // Neither transition depends on a Hardware value or a fetched metadata response.
+    // The checked-in supported target list is the recoverable fallback.
+    let hardware_unavailable = Progress {
+        step: 2,
+        ..Default::default()
+    };
+    assert_eq!(
+        hardware_unavailable
+            .navigate(2, Direction::Next, answers.clone())
+            .unwrap()
+            .current_step(),
+        3
+    );
+    let metadata_unavailable = Progress {
+        step: 4,
+        answers: answers.clone(),
+        ..Default::default()
+    };
+    assert_eq!(
+        metadata_unavailable
+            .navigate(4, Direction::Next, answers)
+            .unwrap()
+            .current_step(),
+        5
+    );
+}
+
+#[tokio::test]
+async fn interrupted_setup_resumes_and_completion_persists() {
+    use crate::onboarding::{self, Direction, Progress};
+    let dir = tempfile::tempdir().unwrap();
+    let answers = onboarding::Onboarding::default();
+    assert_eq!(onboarding::load(dir.path()).await, Progress::default());
+    let interrupted = Progress::default()
+        .navigate(0, Direction::Next, answers.clone())
+        .unwrap();
+    onboarding::save(dir.path(), &interrupted).await.unwrap();
+    assert_eq!(onboarding::load(dir.path()).await.current_step(), 1);
+
+    let mut progress = interrupted;
+    for expected in 1..onboarding::LAST_STEP {
+        progress = progress
+            .navigate(expected, Direction::Next, answers.clone())
+            .unwrap();
+    }
+    let completed = progress.finish(onboarding::LAST_STEP, answers).unwrap();
+    onboarding::save(dir.path(), &completed).await.unwrap();
+    let restarted = onboarding::load(dir.path()).await;
+    assert!(restarted.completed);
+    assert!(
+        !restarted.needs_setup(),
+        "completed setup must route to the launcher"
+    );
+}
+
+#[tokio::test]
+async fn setup_later_opens_launcher_without_mutating_instances() {
+    use crate::onboarding::{self, Progress};
+    let dir = tempfile::tempdir().unwrap();
+    let before = std::fs::read_dir(dir.path()).unwrap().count();
+    let deferred = Progress::default()
+        .defer(0, onboarding::Onboarding::default())
+        .unwrap();
+    onboarding::save(dir.path(), &deferred).await.unwrap();
+    assert!(!onboarding::load(dir.path()).await.needs_setup());
+    assert_eq!(before + 1, std::fs::read_dir(dir.path()).unwrap().count());
+    assert!(!dir.path().join("instances").exists());
 }
 
 #[test]
