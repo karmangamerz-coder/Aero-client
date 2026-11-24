@@ -21,9 +21,6 @@ uuid = { version = "1.18", features = ["v4", "v5", "serde"] }
 futures-util = "0.3"
 zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 fs2 = "0.4"
-# bindgen 0.73's generated-code path requires both features. Listing them
-# explicitly keeps target-specific feature resolution identical on CI hosts.
-syn = { version = "2.0.119", features = ["full", "parsing"] }
 
 [profile.release]
 opt-level = "s"

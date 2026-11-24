@@ -36,9 +36,6 @@ windows-sys = { version = "0.61", features = [
 [dev-dependencies]
 tempfile = "3"
 
-[build-dependencies]
-syn.workspace = true
-
 [[bin]]
 name = "aero-cli"
 path = "src/main.rs"
