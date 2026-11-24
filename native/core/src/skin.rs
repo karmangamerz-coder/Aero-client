@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! Lightweight Minecraft skin rendering.
 //!
 //! A skin is a 64×64 (or legacy 64×32) PNG texture. Aero decodes it once, composes

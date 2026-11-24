@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! Services bridged to the UI thread.
 //!
 //! Exactly one interactive command runs at a time on a two-thread Tokio runtime;
@@ -81,6 +81,7 @@ pub enum Command {
     Configure(String, Option<u32>, String),
     LoadPlan(String),
     Discover(String, String, String, String),
+    InstallContent(String, String),
     SignIn,
     SwitchAccount(String),
     SignOut,
@@ -482,8 +483,22 @@ async fn handle(
             .map_err(|e| format!("Modrinth search failed: {e:#}"))?;
             let count = results.len();
             state.send_modify(|s| s.results = results);
+            Ok(format!("{count} compatible Modrinth projects shown."))
+        }
+        Command::InstallContent(instance_id, project) => {
+            let installed = content::install(
+                &installer.store,
+                &installer.client,
+                &instance_id,
+                &project,
+                token,
+            )
+            .await
+            .map_err(|e| format!("Content installation failed: {e:#}"))?;
             Ok(format!(
-                "{count} Modrinth projects shown. Installation arrives with M4."
+                "Installed {} verified project file{}.",
+                installed.len(),
+                if installed.len() == 1 { "" } else { "s" }
             ))
         }
         Command::SwitchAccount(uuid) => {

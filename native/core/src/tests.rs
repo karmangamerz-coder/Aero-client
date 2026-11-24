@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 use crate::{install::*, storage::*, *};
 use serde_json::json;
 use sha1::{Digest, Sha1};

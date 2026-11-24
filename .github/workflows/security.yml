@@ -17,6 +17,10 @@ jobs:
           persist-credentials: false
       - name: Audit all locked Maven versions against OSV
         run: python3 scripts/audit_dependencies.py
+      - name: Install pinned Rust audit tool
+        run: cargo install cargo-audit --locked --version 0.21.2
+      - name: Audit locked Rust dependencies
+        run: cargo audit
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! Authenticated game launching: command line resolution, Java selection, process
 //! supervision, live logs and crash reporting.
 //!
@@ -25,7 +25,7 @@ use std::{
 use tokio::{fs, io::AsyncBufReadExt, process::Child};
 
 pub const LAUNCHER_BRAND: &str = "Aero Client";
-pub const LAUNCHER_VERSION: &str = "0.4.0";
+pub const LAUNCHER_VERSION: &str = "1.0.0-beta.1";
 
 #[derive(Clone, Debug)]
 pub struct LaunchSpec {

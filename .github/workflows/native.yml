@@ -2,13 +2,33 @@ name: Native Rust launcher
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  portable-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install Linux native UI libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.100.0 --profile minimal
+      - name: Check portable core and launcher
+        run: cargo check --locked --workspace
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
     env:
       CARGO_TERM_COLOR: always
     steps:
@@ -33,7 +53,7 @@ jobs:
         run: cargo build --locked --release --workspace
       - name: Native dependency inventory
         run: cargo metadata --locked --format-version 1 > target/dependencies.json
-      - name: Assemble portable development package
+      - name: Stage portable package
         shell: pwsh
         run: |
           $portable = Resolve-Path target | ForEach-Object { Join-Path $_ 'portable' }
@@ -42,14 +62,31 @@ jobs:
           New-Item -ItemType Directory -Force target/portable | Out-Null
           Copy-Item target/release/aero-launcher.exe,target/release/aero-cli.exe,LICENSE,THIRD_PARTY_LICENSES.md target/portable
           Copy-Item third-party target/portable/third-party -Recurse
+      - name: Build NSIS setup
+        shell: pwsh
+        run: |
+          choco install nsis --version=3.10 -y --no-progress
+          & 'C:\Program Files (x86)\NSIS\makensis.exe' /DVERSION=1.0.0 /DAPP_SOURCE="$((Resolve-Path target/portable).Path)" packaging/windows/AeroClient.nsi
+      - name: Archive and checksum release files
+        shell: pwsh
+        run: |
           Compress-Archive target/portable/* target/AeroClient-Portable.zip -Force
-          $hash = (Get-FileHash target/AeroClient-Portable.zip -Algorithm SHA256).Hash.ToLower()
-          "$hash  AeroClient-Portable.zip" | Set-Content target/SHA256SUMS.txt
+          @('AeroClient-Setup.exe', 'AeroClient-Portable.zip') | ForEach-Object {
+            $hash = (Get-FileHash (Join-Path target $_) -Algorithm SHA256).Hash.ToLower()
+            "$hash  $_"
+          } | Set-Content target/SHA256SUMS.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: aero-native-windows
           path: |
             target/AeroClient-Portable.zip
+            target/AeroClient-Setup.exe
             target/SHA256SUMS.txt
             target/dependencies.json
           if-no-files-found: error
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" target/AeroClient-Setup.exe target/AeroClient-Portable.zip target/SHA256SUMS.txt --verify-tag --generate-notes

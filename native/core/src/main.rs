@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 use aero_core::{CancellationToken, Installer, Loader, Store};
 use std::{path::Path, sync::Arc};
 

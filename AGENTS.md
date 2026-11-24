@@ -6,6 +6,8 @@ unnecessarily restructure the repository. Prefer medium reasoning and targeted w
 never sacrifice correctness or security to reduce cost.
 
 ## Architecture, license and security
+- All original Aero source is GPL-3.0-only. Do not add a dependency whose license is
+  incompatible with GPLv3 distribution; preserve every third-party notice.
 - M2-R supersedes the launcher stack: Rust + Freya + Skia in a Cargo workspace, Tokio,
   Reqwest and Serde. Keep the in-game client Java. Retain JavaFX fallback until Rust
   parity is validated; no Tauri, Electron, Chromium or JavaFX in the replacement.

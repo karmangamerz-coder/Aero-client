@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: MIT */
+/* SPDX-License-Identifier: GPL-3.0-only */
 .root { -fx-font-family: 'Segoe UI', sans-serif; -fx-font-size: 14px; -fx-base: #f3f9fb; -fx-background: #edf5f8; -fx-text-background-color: #153849; -fx-accent: #26809c; -fx-focus-color: #186f94; -fx-faint-focus-color: #186f9433; }
 .sidebar { -fx-padding: 24 12 20 12; -fx-background-color: linear-gradient(to bottom, #e0f4fb, #f2f8fa); -fx-border-color: transparent #b9d4df transparent transparent; -fx-border-width: 1; }
 .brand { -fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #145671; -fx-padding: 0 10 0 10; }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 use crate::storage::{atomic_replace, safe_path};
 use anyhow::{Context, Result, bail, ensure};
 use futures_util::{StreamExt, stream};
@@ -72,7 +72,7 @@ impl DownloadClient {
                 .redirect(reqwest::redirect::Policy::none())
                 .connect_timeout(Duration::from_secs(20))
                 .read_timeout(Duration::from_secs(30))
-                .user_agent("AeroClient/0.3.0 (+https://github.com/karmangamerz-coder/Aero-client)")
+                .user_agent("AeroClient/1.0.0-beta.1 (+https://github.com/karmangamerz-coder/Aero-client)")
                 .build()?,
             test_origin: None,
             report,

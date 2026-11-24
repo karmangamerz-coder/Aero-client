@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Bundle native output, original source and notices; checksum every release file."""
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-only
 import hashlib
 import os
 from pathlib import Path

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! First-launch setup state. Progress is written after every step, so closing the
 //! launcher mid-setup resumes exactly where it stopped instead of starting over.
 use anyhow::{Result, ensure};

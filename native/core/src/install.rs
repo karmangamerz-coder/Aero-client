@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 use crate::{
     Artifact, CancellationToken, DownloadClient, Instance, Loader, Store, TARGETS,
     VERSION_MANIFEST, runtime,

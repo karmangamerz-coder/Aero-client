@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-only
 """Deterministic original Aero vector artwork. Python standard library only."""
 from pathlib import Path
 import math

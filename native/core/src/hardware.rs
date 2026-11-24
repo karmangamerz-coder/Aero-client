@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! One-shot hardware detection for the setup wizard and performance presets.
 //! Detection is read-only: Aero never changes system settings on its own, and the
 //! recommendation is a suggestion the player can always override.
