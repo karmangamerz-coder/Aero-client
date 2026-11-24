@@ -701,7 +701,9 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .child(
                     action("Install", p)
                         .enabled(!s.busy && !instance.is_empty() && item.project_type != "modpack")
-                        .on_press(move |_| backend.send(Command::InstallContent(instance.clone(), project.clone()))),
+                        .on_press(move |_| {
+                            backend.send(Command::InstallContent(instance.clone(), project.clone()))
+                        }),
                 )
         })
         .collect();

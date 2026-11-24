@@ -4,7 +4,8 @@ use crate::{CancellationToken, DownloadClient};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 
-pub const RELEASES: &str = "https://api.github.com/repos/karmangamerz-coder/Aero-client/releases/latest";
+pub const RELEASES: &str =
+    "https://api.github.com/repos/karmangamerz-coder/Aero-client/releases/latest";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Release {
@@ -16,14 +17,21 @@ pub struct Release {
 }
 
 pub async fn latest(client: &DownloadClient, cancel: &CancellationToken) -> Result<Release> {
-    let value: serde_json::Value = serde_json::from_slice(&client.metadata(RELEASES, cancel).await?)
-        .context("Invalid GitHub release response")?;
+    let value: serde_json::Value =
+        serde_json::from_slice(&client.metadata(RELEASES, cancel).await?)
+            .context("Invalid GitHub release response")?;
     let tag = value["tag_name"].as_str().context("Release has no tag")?;
     let version = tag.strip_prefix('v').unwrap_or(tag);
-    ensure!(valid_version(version), "Release tag is not semantic versioning");
+    ensure!(
+        valid_version(version),
+        "Release tag is not semantic versioning"
+    );
     let mut release = Release {
         version: version.into(),
-        page: value["html_url"].as_str().context("Release has no page")?.into(),
+        page: value["html_url"]
+            .as_str()
+            .context("Release has no page")?
+            .into(),
         portable_url: None,
         setup_url: None,
         checksums_url: None,
@@ -44,13 +52,17 @@ pub async fn latest(client: &DownloadClient, cancel: &CancellationToken) -> Resu
 pub fn valid_version(value: &str) -> bool {
     let base = value.split_once('-').map_or(value, |(base, _)| base);
     let parts: Vec<_> = base.split('.').collect();
-    parts.len() == 3 && parts.iter().all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+    parts.len() == 3
+        && parts
+            .iter()
+            .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test] fn semantic_versions_are_strict() {
+    #[test]
+    fn semantic_versions_are_strict() {
         assert!(valid_version("1.0.0"));
         assert!(valid_version("1.0.0-beta.1"));
         assert!(!valid_version("1.0"));

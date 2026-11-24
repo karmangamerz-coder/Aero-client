@@ -8,7 +8,11 @@ use crate::{Artifact, CancellationToken, DownloadClient, Instance, Loader, Store
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::{HashSet, VecDeque}, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    collections::{HashSet, VecDeque},
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use tokio::fs;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -48,27 +52,50 @@ pub async fn discover(
     loader: &str,
     cancel: &CancellationToken,
 ) -> Result<Vec<DiscoveryItem>> {
-    ensure!(["mod", "modpack", "resourcepack", "shader"].contains(&project_type), "Unknown project category");
+    ensure!(
+        ["mod", "modpack", "resourcepack", "shader"].contains(&project_type),
+        "Unknown project category"
+    );
     let mut facets = vec![vec![format!("project_type:{project_type}")]];
-    if !version.is_empty() { facets.push(vec![format!("versions:{version}")]); }
-    if ["fabric", "forge"].contains(&loader) { facets.push(vec![format!("categories:{loader}")]); }
+    if !version.is_empty() {
+        facets.push(vec![format!("versions:{version}")]);
+    }
+    if ["fabric", "forge"].contains(&loader) {
+        facets.push(vec![format!("categories:{loader}")]);
+    }
     let mut url = reqwest::Url::parse("https://api.modrinth.com/v2/search")?;
-    url.query_pairs_mut().append_pair("query", query).append_pair("limit", "24")
+    url.query_pairs_mut()
+        .append_pair("query", query)
+        .append_pair("limit", "24")
         .append_pair("facets", &serde_json::to_string(&facets)?);
     use sha1::{Digest, Sha1};
-    let key = format!("modrinth-{}", hex::encode(Sha1::digest(url.as_str().as_bytes())));
-    let value = store.cached_json(client, &key, url.as_str(), false, cancel).await?;
-    Ok(value["hits"].as_array().context("Invalid Modrinth response")?.iter().map(|hit| DiscoveryItem {
-        title: hit["title"].as_str().unwrap_or("").into(),
-        description: hit["description"].as_str().unwrap_or("").into(),
-        project_type: hit["project_type"].as_str().unwrap_or("").into(),
-        slug: hit["slug"].as_str().unwrap_or("").into(),
-        icon_url: hit["icon_url"].as_str().unwrap_or("").into(),
-    }).collect())
+    let key = format!(
+        "modrinth-{}",
+        hex::encode(Sha1::digest(url.as_str().as_bytes()))
+    );
+    let value = store
+        .cached_json(client, &key, url.as_str(), false, cancel)
+        .await?;
+    Ok(value["hits"]
+        .as_array()
+        .context("Invalid Modrinth response")?
+        .iter()
+        .map(|hit| DiscoveryItem {
+            title: hit["title"].as_str().unwrap_or("").into(),
+            description: hit["description"].as_str().unwrap_or("").into(),
+            project_type: hit["project_type"].as_str().unwrap_or("").into(),
+            slug: hit["slug"].as_str().unwrap_or("").into(),
+            icon_url: hit["icon_url"].as_str().unwrap_or("").into(),
+        })
+        .collect())
 }
 
 fn loader_name(loader: Loader) -> &'static str {
-    match loader { Loader::Vanilla => "", Loader::Fabric => "fabric", Loader::Forge => "forge" }
+    match loader {
+        Loader::Vanilla => "",
+        Loader::Fabric => "fabric",
+        Loader::Forge => "forge",
+    }
 }
 
 fn folder(project_type: &str) -> Result<&'static str> {
@@ -85,27 +112,57 @@ async fn json(client: &DownloadClient, url: &str, cancel: &CancellationToken) ->
     serde_json::from_slice(&client.metadata(url, cancel).await?).context("Invalid Modrinth JSON")
 }
 
-async fn compatible_version(client: &DownloadClient, project: &str, instance: &Instance, cancel: &CancellationToken) -> Result<Value> {
-    let mut url = reqwest::Url::parse(&format!("https://api.modrinth.com/v2/project/{project}/version"))?;
-    url.query_pairs_mut().append_pair("game_versions", &serde_json::to_string(&[&instance.version])?);
+async fn compatible_version(
+    client: &DownloadClient,
+    project: &str,
+    instance: &Instance,
+    cancel: &CancellationToken,
+) -> Result<Value> {
+    let mut url = reqwest::Url::parse(&format!(
+        "https://api.modrinth.com/v2/project/{project}/version"
+    ))?;
+    url.query_pairs_mut().append_pair(
+        "game_versions",
+        &serde_json::to_string(&[&instance.version])?,
+    );
     let loader = loader_name(instance.loader);
-    if !loader.is_empty() { url.query_pairs_mut().append_pair("loaders", &serde_json::to_string(&[loader])?); }
+    if !loader.is_empty() {
+        url.query_pairs_mut()
+            .append_pair("loaders", &serde_json::to_string(&[loader])?);
+    }
     let versions = json(client, url.as_str(), cancel).await?;
-    let list = versions.as_array().context("Invalid Modrinth version list")?;
-    list.iter().find(|v| v["status"].as_str().is_none_or(|s| s == "listed") && v["version_type"].as_str().is_none_or(|s| s == "release"))
-        .or_else(|| list.first()).cloned().context("No compatible version is available for this instance")
+    let list = versions
+        .as_array()
+        .context("Invalid Modrinth version list")?;
+    list.iter()
+        .find(|v| {
+            v["status"].as_str().is_none_or(|s| s == "listed")
+                && v["version_type"].as_str().is_none_or(|s| s == "release")
+        })
+        .or_else(|| list.first())
+        .cloned()
+        .context("No compatible version is available for this instance")
 }
 
 async fn load_manifest(store: &Store, id: &str) -> Result<ContentManifest> {
     let file = store.directory(id).await?.join("content.json");
-    if !fs::try_exists(&file).await? { return Ok(ContentManifest { schema: 1, projects: vec![] }); }
+    if !fs::try_exists(&file).await? {
+        return Ok(ContentManifest {
+            schema: 1,
+            projects: vec![],
+        });
+    }
     let manifest: ContentManifest = serde_json::from_slice(&fs::read(file).await?)?;
     ensure!(manifest.schema == 1, "Unsupported content manifest");
     Ok(manifest)
 }
 
 async fn save_manifest(store: &Store, id: &str, manifest: &ContentManifest) -> Result<()> {
-    crate::storage::write_atomic(&store.directory(id).await?.join("content.json"), &serde_json::to_vec_pretty(manifest)?).await
+    crate::storage::write_atomic(
+        &store.directory(id).await?.join("content.json"),
+        &serde_json::to_vec_pretty(manifest)?,
+    )
+    .await
 }
 
 pub async fn list(store: &Store, id: &str) -> Result<Vec<InstalledProject>> {
@@ -120,7 +177,14 @@ pub async fn install(
     project: &str,
     cancel: &CancellationToken,
 ) -> Result<Vec<InstalledProject>> {
-    ensure!(!project.is_empty() && project.len() <= 128 && project.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'), "Invalid project identity");
+    ensure!(
+        !project.is_empty()
+            && project.len() <= 128
+            && project
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-'),
+        "Invalid project identity"
+    );
     let instance = store.read(instance_id).await?;
     let root = store.directory(instance_id).await?.join("game");
     let mut manifest = load_manifest(store, instance_id).await?;
@@ -130,32 +194,72 @@ pub async fn install(
     while let Some((identity, dependency)) = queue.pop_front() {
         ensure!(!cancel.is_cancelled(), "Installation cancelled");
         ensure!(visited.len() < 64, "Dependency graph is too large");
-        if !visited.insert(identity.clone()) { continue; }
-        let project_json = json(client, &format!("https://api.modrinth.com/v2/project/{identity}"), cancel).await?;
+        if !visited.insert(identity.clone()) {
+            continue;
+        }
+        let project_json = json(
+            client,
+            &format!("https://api.modrinth.com/v2/project/{identity}"),
+            cancel,
+        )
+        .await?;
         let project_id = project_json["id"].as_str().context("Missing project id")?;
-        if manifest.projects.iter().any(|p| p.project_id == project_id) { continue; }
-        let project_type = project_json["project_type"].as_str().context("Missing project type")?;
+        if manifest.projects.iter().any(|p| p.project_id == project_id) {
+            continue;
+        }
+        let project_type = project_json["project_type"]
+            .as_str()
+            .context("Missing project type")?;
         let destination = folder(project_type)?;
         let version = compatible_version(client, project_id, &instance, cancel).await?;
         for item in version["dependencies"].as_array().into_iter().flatten() {
             if item["dependency_type"] == "required" {
-                if let Some(id) = item["project_id"].as_str() { queue.push_back((id.to_owned(), true)); }
+                if let Some(id) = item["project_id"].as_str() {
+                    queue.push_back((id.to_owned(), true));
+                }
             }
         }
-        let files = version["files"].as_array().context("Version has no files")?;
-        let file = files.iter().find(|f| f["primary"] == true).or_else(|| files.first()).context("Version has no downloadable file")?;
+        let files = version["files"]
+            .as_array()
+            .context("Version has no files")?;
+        let file = files
+            .iter()
+            .find(|f| f["primary"] == true)
+            .or_else(|| files.first())
+            .context("Version has no downloadable file")?;
         let filename = file["filename"].as_str().context("Missing filename")?;
         crate::storage::validate_relative(filename)?;
-        ensure!(!filename.contains('/'), "Nested content filenames are forbidden");
-        let sha1 = file["hashes"]["sha1"].as_str().context("Modrinth file has no SHA-1")?;
-        let artifact = Artifact { url: file["url"].as_str().context("Missing file URL")?.into(), sha1: sha1.into(), size: file["size"].as_u64(), alternatives: vec![] };
-        client.fetch(&artifact, &root, &format!("{destination}/{filename}"), cancel).await?;
+        ensure!(
+            !filename.contains('/'),
+            "Nested content filenames are forbidden"
+        );
+        let sha1 = file["hashes"]["sha1"]
+            .as_str()
+            .context("Modrinth file has no SHA-1")?;
+        let artifact = Artifact {
+            url: file["url"].as_str().context("Missing file URL")?.into(),
+            sha1: sha1.into(),
+            size: file["size"].as_u64(),
+            alternatives: vec![],
+        };
+        client
+            .fetch(
+                &artifact,
+                &root,
+                &format!("{destination}/{filename}"),
+                cancel,
+            )
+            .await?;
         let record = InstalledProject {
             project_id: project_id.into(),
             version_id: version["id"].as_str().context("Missing version id")?.into(),
             slug: project_json["slug"].as_str().unwrap_or(project_id).into(),
             title: project_json["title"].as_str().unwrap_or(project_id).into(),
-            project_type: project_type.into(), file: format!("{destination}/{filename}"), sha1: sha1.into(), enabled: true, dependency,
+            project_type: project_type.into(),
+            file: format!("{destination}/{filename}"),
+            sha1: sha1.into(),
+            enabled: true,
+            dependency,
         };
         manifest.projects.push(record.clone());
         save_manifest(store, instance_id, &manifest).await?;
@@ -164,13 +268,31 @@ pub async fn install(
     Ok(installed)
 }
 
-pub async fn set_enabled(store: &Store, instance_id: &str, project_id: &str, enabled: bool) -> Result<()> {
+pub async fn set_enabled(
+    store: &Store,
+    instance_id: &str,
+    project_id: &str,
+    enabled: bool,
+) -> Result<()> {
     let mut manifest = load_manifest(store, instance_id).await?;
-    let record = manifest.projects.iter_mut().find(|p| p.project_id == project_id).context("Project is not installed")?;
-    if record.enabled == enabled { return Ok(()); }
+    let record = manifest
+        .projects
+        .iter_mut()
+        .find(|p| p.project_id == project_id)
+        .context("Project is not installed")?;
+    if record.enabled == enabled {
+        return Ok(());
+    }
     let root = store.directory(instance_id).await?.join("game");
     let from_relative = record.file.clone();
-    let to_relative = if enabled { from_relative.strip_suffix(".disabled").context("Invalid disabled filename")?.to_owned() } else { format!("{from_relative}.disabled") };
+    let to_relative = if enabled {
+        from_relative
+            .strip_suffix(".disabled")
+            .context("Invalid disabled filename")?
+            .to_owned()
+    } else {
+        format!("{from_relative}.disabled")
+    };
     let from = crate::storage::safe_path(&root, &from_relative).await?;
     let to = crate::storage::safe_path(&root, &to_relative).await?;
     fs::rename(from, to).await?;
@@ -182,14 +304,22 @@ pub async fn set_enabled(store: &Store, instance_id: &str, project_id: &str, ena
 /// Recoverable removal: content is moved under the instance's content-trash folder.
 pub async fn remove(store: &Store, instance_id: &str, project_id: &str) -> Result<PathBuf> {
     let mut manifest = load_manifest(store, instance_id).await?;
-    let index = manifest.projects.iter().position(|p| p.project_id == project_id).context("Project is not installed")?;
+    let index = manifest
+        .projects
+        .iter()
+        .position(|p| p.project_id == project_id)
+        .context("Project is not installed")?;
     let record = manifest.projects.remove(index);
     let directory = store.directory(instance_id).await?;
     let source = crate::storage::safe_path(&directory.join("game"), &record.file).await?;
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
     let record_path = PathBuf::from(&record.file);
-    let filename = record_path.file_name().context("Missing filename")?.to_string_lossy();
-    let target = crate::storage::safe_path(&directory, &format!("content-trash/{stamp}-{filename}")).await?;
+    let filename = record_path
+        .file_name()
+        .context("Missing filename")?
+        .to_string_lossy();
+    let target =
+        crate::storage::safe_path(&directory, &format!("content-trash/{stamp}-{filename}")).await?;
     fs::create_dir_all(target.parent().context("Missing trash directory")?).await?;
     fs::rename(source, &target).await?;
     save_manifest(store, instance_id, &manifest).await?;

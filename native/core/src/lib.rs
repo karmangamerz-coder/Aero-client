@@ -10,9 +10,9 @@ pub mod performance;
 pub mod runtime;
 pub mod skin;
 pub mod storage;
-pub mod update;
 #[cfg(test)]
 mod tests;
+pub mod update;
 pub use auth::{Account, Accounts};
 pub use hardware::{Hardware, Performance};
 pub use install::Installer;
