@@ -15,6 +15,9 @@ tokio-util.workspace = true
 serde_json.workspace = true
 reqwest.workspace = true
 
+[build-dependencies]
+syn.workspace = true
+
 [package.metadata.packager]
 product-name = "Aero Client"
 identifier = "org.aeroclient.launcher"
