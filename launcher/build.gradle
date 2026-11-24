@@ -59,9 +59,10 @@ tasks.register('packageNative', Exec) {
             '--runtime-image', layout.buildDirectory.dir('launcher-runtime').get().asFile,
             '--dest', destination.get().asFile
         ]
-        // macOS rejects pre-1.0 semantic versions as CFBundleShortVersionString.
-        // Let jpackage use its valid 1.0 bundle default while project artifacts keep 0.x.
-        if (!mac) arguments.addAll(4, ['--app-version', project.version.toString()])
+        // jpackage accepts numeric platform versions, while release artifacts retain
+        // the complete SemVer pre-release label.
+        def platformVersion = project.version.toString().tokenize('-')[0]
+        arguments.addAll(4, ['--app-version', platformVersion])
         commandLine([javaHome.file('bin/jpackage' + (windows ? '.exe' : '')).asFile] + arguments)
    }
 }

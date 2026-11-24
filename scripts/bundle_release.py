@@ -14,8 +14,11 @@ root = Path(__file__).resolve().parents[1]
 os.chdir(root)
 version = next(line.split('=', 1)[1] for line in Path('gradle.properties').read_text().splitlines()
                if line.startswith('version='))
-if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
-    raise SystemExit('Native release packaging requires a stable SemVer version')
+if not re.fullmatch(
+        r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+        r'(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?',
+        version):
+    raise SystemExit('Native release packaging requires a valid SemVer version')
 if subprocess.check_output(['git', 'status', '--porcelain'], text=True).strip():
     raise SystemExit('Commit all source changes before generating a release')
 tag = os.environ.get('GITHUB_REF', '')
