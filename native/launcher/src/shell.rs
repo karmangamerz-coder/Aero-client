@@ -19,7 +19,8 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
         .spacing(6.)
         .cross_align(Alignment::Center)
         .background(p.rail)
-        .border(Border::new().width(1.).fill(p.border_soft));
+        .border(Border::new().width(1.).fill(p.border_soft))
+        .maybe(p.photo, |r| r.backdrop_blur(12.));
     rail = rail.child(
         rect()
             .width(Size::px(40.))
@@ -77,6 +78,9 @@ pub fn top_bar(_ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Rect {
         .padding((0., 14.))
         .spacing(10.)
         .cross_align(Alignment::Center)
+        .background(p.glass_soft)
+        .border(Border::new().width(1.).fill(p.border_soft))
+        .maybe(p.photo, |r| r.backdrop_blur(10.))
         .child(logo(24.))
         .child(strong("Aero Client", 15.5, p.art_text))
         .child(rect().width(Size::flex(1.)))

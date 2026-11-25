@@ -13,19 +13,27 @@ use std::{
 };
 use tokio::fs;
 
-/// Public OAuth client id. Never a secret: it identifies the application, not a
-/// user. Owners can override it (ADR 0007) with their own Azure public client.
-pub const DEFAULT_CLIENT_ID: &str = "00000000402b5328";
+/// A client id is public application metadata, not a secret. Aero intentionally
+/// does not borrow Minecraft's retired legacy id or another launcher's identity.
 const AUTHORITY: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const SCOPE: &str = "XboxLive.signin offline_access";
 const ACCOUNTS_FILE: &str = "accounts.bin";
 
-pub fn client_id() -> String {
-    std::env::var("AERO_MS_CLIENT_ID")
+pub fn client_id(configured: &str) -> Result<String> {
+    let value = std::env::var("AERO_MS_CLIENT_ID")
         .ok()
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| DEFAULT_CLIENT_ID.to_owned())
+        .unwrap_or_else(|| configured.trim().to_owned());
+    ensure!(
+        !value.is_empty(),
+        "Microsoft sign-in needs Aero's Azure public-client ID. Add it in Settings or set AERO_MS_CLIENT_ID; see README.md."
+    );
+    ensure!(
+        uuid::Uuid::parse_str(&value).is_ok(),
+        "Microsoft client ID must be an Azure application GUID"
+    );
+    Ok(value)
 }
 
 fn now() -> u64 {
@@ -112,10 +120,11 @@ pub struct DevicePrompt {
 
 /// Step 1: ask Microsoft for a browser sign-in code. The user types it on
 /// microsoft.com/link and approves; Aero never handles the password.
-pub async fn begin(client: &reqwest::Client) -> Result<DevicePrompt> {
+pub async fn begin(client: &reqwest::Client, configured_client_id: &str) -> Result<DevicePrompt> {
+    let client_id = client_id(configured_client_id)?;
     let response = client
         .post(format!("{AUTHORITY}/devicecode"))
-        .form(&[("client_id", client_id()), ("scope", SCOPE.into())])
+        .form(&[("client_id", client_id), ("scope", SCOPE.into())])
         .send()
         .await
         .context("Cannot reach Microsoft sign-in")?;
@@ -172,7 +181,9 @@ pub async fn poll(
     client: &reqwest::Client,
     prompt: &DevicePrompt,
     cancel: &crate::CancellationToken,
+    configured_client_id: &str,
 ) -> Result<MsTokens> {
+    let client_id = client_id(configured_client_id)?;
     let deadline = now() + prompt.expires_in;
     while now() < deadline {
         ensure!(!cancel.is_cancelled(), "Sign-in cancelled");
@@ -184,7 +195,7 @@ pub async fn poll(
                     "grant_type",
                     "urn:ietf:params:oauth:grant-type:device_code".to_owned(),
                 ),
-                ("client_id", client_id()),
+                ("client_id", client_id.clone()),
                 ("device_code", prompt.device_code.clone()),
             ])
             .send()
@@ -207,12 +218,17 @@ pub async fn poll(
     bail!("The sign-in code expired. Start again to get a new one.")
 }
 
-async fn refresh_tokens(client: &reqwest::Client, refresh: &str) -> Result<MsTokens> {
+async fn refresh_tokens(
+    client: &reqwest::Client,
+    refresh: &str,
+    configured_client_id: &str,
+) -> Result<MsTokens> {
+    let client_id = client_id(configured_client_id)?;
     let response = client
         .post(format!("{AUTHORITY}/token"))
         .form(&[
             ("grant_type", "refresh_token".to_owned()),
-            ("client_id", client_id()),
+            ("client_id", client_id),
             ("refresh_token", refresh.to_owned()),
             ("scope", SCOPE.to_owned()),
         ])
@@ -523,12 +539,16 @@ pub async fn finish(client: &reqwest::Client, tokens: &MsTokens) -> Result<(Acco
 }
 
 /// Renew a Minecraft session token from the stored Microsoft refresh token.
-pub async fn renew(client: &reqwest::Client, account: &Account) -> Result<Account> {
+pub async fn renew(
+    client: &reqwest::Client,
+    account: &Account,
+    configured_client_id: &str,
+) -> Result<Account> {
     ensure!(
         !account.ms.refresh_token.is_empty(),
         "This account needs to sign in again"
     );
-    let ms = refresh_tokens(client, &account.ms.refresh_token).await?;
+    let ms = refresh_tokens(client, &account.ms.refresh_token, configured_client_id).await?;
     let (fresh, _) = minecraft_chain(client, &ms).await?;
     ensure!(
         fresh.uuid == account.uuid,

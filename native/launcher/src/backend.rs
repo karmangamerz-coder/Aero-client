@@ -13,7 +13,9 @@ use aero_core::{
 use std::{
     process::Stdio,
     sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
 };
+use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, watch};
 
 const LOG_LIMIT: usize = 120;
@@ -24,6 +26,8 @@ pub struct Snapshot {
     pub instances: Vec<Instance>,
     pub versions: Vec<String>,
     pub results: Vec<content::DiscoveryItem>,
+    pub project_detail: Option<content::ProjectDetail>,
+    pub installed_content: Vec<content::InstalledProject>,
     pub settings: Settings,
     pub plan: Option<serde_json::Value>,
     pub log: Vec<String>,
@@ -50,6 +54,8 @@ impl Default for Snapshot {
             instances: vec![],
             versions: vec![],
             results: vec![],
+            project_detail: None,
+            installed_content: vec![],
             settings: Settings::default(),
             plan: None,
             log: vec![],
@@ -80,8 +86,12 @@ pub enum Command {
     Save(Settings),
     Configure(String, Option<u32>, String),
     LoadPlan(String),
-    Discover(String, String, String, String),
+    Discover(String, String, String, String, String, String),
+    LoadProject(String, String, String),
+    LoadContent(String),
     InstallContent(String, String),
+    ToggleContent(String, String, bool),
+    RemoveContent(String, String),
     SignIn,
     SwitchAccount(String),
     SignOut,
@@ -157,7 +167,22 @@ impl Backend {
                 }
             };
             if let Ok(instances) = installer.store.list().await {
-                state.send_modify(|s| s.instances = instances);
+                let selected = instances
+                    .first()
+                    .map(|item| item.id.clone())
+                    .unwrap_or_default();
+                let installed_content = if selected.is_empty() {
+                    vec![]
+                } else {
+                    content::list(&installer.store, &selected)
+                        .await
+                        .unwrap_or_default()
+                };
+                state.send_modify(|s| {
+                    s.instances = instances;
+                    s.selected = selected;
+                    s.installed_content = installed_content;
+                });
             }
             // Character artwork is composed once from the saved account, if any.
             let saved_account = {
@@ -206,10 +231,21 @@ impl Backend {
                 }
                 match command {
                     Command::SignIn => {
+                        let configured_client_id =
+                            state.borrow().settings.microsoft_client_id.clone();
+                        state.send_modify(|s| {
+                            s.signin_state = "Starting secure Microsoft sign-in…".into();
+                            s.message = "Preparing Microsoft device-code sign-in…".into();
+                        });
                         let client = match auth::client() {
                             Ok(client) => client,
                             Err(error) => {
-                                state.send_modify(|s| s.message = format!("{error:#}"));
+                                let message = format!("{error:#}");
+                                append_launcher_log("Microsoft sign-in", &message).await;
+                                state.send_modify(|s| {
+                                    s.signin_state = message.clone();
+                                    s.message = message;
+                                });
                                 continue;
                             }
                         };
@@ -218,41 +254,59 @@ impl Backend {
                         let token = CancellationToken::new();
                         *shared_cancel.lock().unwrap() = token.clone();
                         tokio::spawn(async move {
-                            let prompt = match auth::begin(&client).await {
+                            let prompt = match auth::begin(&client, &configured_client_id).await {
                                 Ok(prompt) => prompt,
                                 Err(error) => {
+                                    let message = format!("Sign-in unavailable: {error:#}");
+                                    append_launcher_log("Microsoft sign-in", &message).await;
                                     state.send_modify(|s| {
-                                        s.signin_state = format!("Sign-in unavailable: {error:#}");
+                                        s.signin_state = message.clone();
+                                        s.message = message;
                                     });
                                     return;
                                 }
                             };
-                            open_browser(&prompt.verification_uri);
+                            let browser_opened = open_browser(&prompt.verification_uri);
                             state.send_modify(|s| {
                                 s.signin_state = format!(
-                                    "Enter code {} at {} — waiting for approval…",
-                                    prompt.user_code, prompt.verification_uri
+                                    "{}Enter code {} at {} — waiting for approval…",
+                                    if browser_opened {
+                                        ""
+                                    } else {
+                                        "The browser did not open. "
+                                    },
+                                    prompt.user_code,
+                                    prompt.verification_uri
                                 );
                                 s.prompt = Some(prompt.clone());
                             });
-                            let tokens = match auth::poll(&client, &prompt, &token).await {
-                                Ok(tokens) => tokens,
-                                Err(error) => {
-                                    state.send_modify(|s| {
-                                        s.signin_state = format!("{error:#}");
-                                        s.prompt = None;
-                                    });
-                                    return;
-                                }
-                            };
+                            let tokens =
+                                match auth::poll(&client, &prompt, &token, &configured_client_id)
+                                    .await
+                                {
+                                    Ok(tokens) => tokens,
+                                    Err(error) => {
+                                        let message = format!("{error:#}");
+                                        append_launcher_log("Microsoft sign-in", &message).await;
+                                        state.send_modify(|s| {
+                                            s.signin_state = message.clone();
+                                            s.message = message;
+                                            s.prompt = None;
+                                        });
+                                        return;
+                                    }
+                                };
                             state.send_modify(|s| {
                                 s.signin_state = "Verifying Xbox and Minecraft ownership…".into()
                             });
                             let (account, _profile) = match auth::finish(&client, &tokens).await {
                                 Ok(value) => value,
                                 Err(error) => {
+                                    let message = format!("{error:#}");
+                                    append_launcher_log("Microsoft ownership", &message).await;
                                     state.send_modify(|s| {
-                                        s.signin_state = format!("{error:#}");
+                                        s.signin_state = message.clone();
+                                        s.message = message;
                                         s.prompt = None;
                                     });
                                     return;
@@ -263,8 +317,11 @@ impl Backend {
                             if let Err(error) =
                                 auth::save_accounts(&Store::default_root(), &accounts).await
                             {
+                                let message = format!("Cannot store the account: {error:#}");
+                                append_launcher_log("Microsoft account storage", &message).await;
                                 state.send_modify(|s| {
-                                    s.signin_state = format!("Cannot store the account: {error:#}")
+                                    s.signin_state = message.clone();
+                                    s.message = message;
                                 });
                                 return;
                             }
@@ -289,6 +346,9 @@ impl Backend {
                         });
                         let result: Result<String, String> =
                             handle(installer.clone(), &state, command, &token).await;
+                        if let Err(error) = &result {
+                            append_launcher_log("Launcher command", error).await;
+                        }
                         let instances = installer.store.list().await;
                         state.send_modify(|s| {
                             if let Ok(instances) = instances {
@@ -313,6 +373,38 @@ impl Backend {
             cancel,
             launch_cancel,
         }
+    }
+}
+
+async fn append_launcher_log(context: &str, message: &str) {
+    let root = Store::default_root();
+    let path = match aero_core::storage::safe_path(&root, "logs/launcher.log").await {
+        Ok(path) => path,
+        Err(_) => return,
+    };
+    if let Some(parent) = path.parent() {
+        if tokio::fs::create_dir_all(parent).await.is_err() {
+            return;
+        }
+    }
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|value| value.as_secs())
+        .unwrap_or_default();
+    let safe_message: String = message
+        .replace(['\r', '\n'], " ")
+        .chars()
+        .take(2000)
+        .collect();
+    if let Ok(mut file) = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+    {
+        let _ = file
+            .write_all(format!("{stamp} [{context}] {safe_message}\n").as_bytes())
+            .await;
     }
 }
 
@@ -352,10 +444,14 @@ async fn handle(
                 .await
                 .map_err(|e| format!("{e:#}"))?;
             let plan = installer.plan(&instance).await.ok().flatten();
+            let installed_content = content::list(&installer.store, &id)
+                .await
+                .map_err(|e| format!("Cannot read installed content: {e:#}"))?;
             let name = instance.name.clone();
             state.send_modify(|s| {
                 s.selected = id.clone();
                 s.plan = plan;
+                s.installed_content = installed_content;
                 s.message = format!("Selected {name}.");
             });
             Ok(String::new())
@@ -469,7 +565,7 @@ async fn handle(
             state.send_modify(|s| s.plan = plan);
             Ok(String::new())
         }
-        Command::Discover(query, kind, version, loader) => {
+        Command::Discover(query, kind, version, loader, category, sort) => {
             let results = content::discover(
                 &installer.store,
                 &installer.client,
@@ -477,6 +573,8 @@ async fn handle(
                 &kind,
                 &version,
                 &loader,
+                &category,
+                &sort,
                 token,
             )
             .await
@@ -484,6 +582,22 @@ async fn handle(
             let count = results.len();
             state.send_modify(|s| s.results = results);
             Ok(format!("{count} compatible Modrinth projects shown."))
+        }
+        Command::LoadProject(project, version, loader) => {
+            let detail =
+                content::project_detail(&installer.client, &project, &version, &loader, token)
+                    .await
+                    .map_err(|e| format!("Cannot load Modrinth project: {e:#}"))?;
+            let title = detail.title.clone();
+            state.send_modify(|s| s.project_detail = Some(detail));
+            Ok(format!("Loaded {title}."))
+        }
+        Command::LoadContent(instance_id) => {
+            let installed = content::list(&installer.store, &instance_id)
+                .await
+                .map_err(|e| format!("Cannot read installed content: {e:#}"))?;
+            state.send_modify(|s| s.installed_content = installed);
+            Ok(String::new())
         }
         Command::InstallContent(instance_id, project) => {
             let installed = content::install(
@@ -495,11 +609,39 @@ async fn handle(
             )
             .await
             .map_err(|e| format!("Content installation failed: {e:#}"))?;
+            let current = content::list(&installer.store, &instance_id)
+                .await
+                .map_err(|e| format!("Cannot refresh installed content: {e:#}"))?;
+            state.send_modify(|s| s.installed_content = current);
             Ok(format!(
                 "Installed {} verified project file{}.",
                 installed.len(),
                 if installed.len() == 1 { "" } else { "s" }
             ))
+        }
+        Command::ToggleContent(instance_id, project_id, enabled) => {
+            content::set_enabled(&installer.store, &instance_id, &project_id, enabled)
+                .await
+                .map_err(|e| format!("Cannot change installed content: {e:#}"))?;
+            let current = content::list(&installer.store, &instance_id)
+                .await
+                .map_err(|e| format!("Cannot refresh installed content: {e:#}"))?;
+            state.send_modify(|s| s.installed_content = current);
+            Ok(if enabled {
+                "Content enabled.".into()
+            } else {
+                "Content disabled.".into()
+            })
+        }
+        Command::RemoveContent(instance_id, project_id) => {
+            let path = content::remove(&installer.store, &instance_id, &project_id)
+                .await
+                .map_err(|e| format!("Cannot remove installed content: {e:#}"))?;
+            let current = content::list(&installer.store, &instance_id)
+                .await
+                .map_err(|e| format!("Cannot refresh installed content: {e:#}"))?;
+            state.send_modify(|s| s.installed_content = current);
+            Ok(format!("Moved content to {}.", path.display()))
         }
         Command::SwitchAccount(uuid) => {
             let mut accounts = state.borrow().accounts.clone();
@@ -786,32 +928,36 @@ async fn character_for(client: &reqwest::Client, account: &Account) -> Arc<Vec<u
     }
 }
 
-fn open_browser(url: &str) {
+fn open_browser(url: &str) -> bool {
     if !url.starts_with("https://") {
-        return;
+        return false;
     }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        let _ = std::process::Command::new("cmd")
+        return std::process::Command::new("cmd")
             .args(["/C", "start", "", url])
             .creation_flags(0x0800_0000)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn()
+            .is_ok();
     }
     #[cfg(target_os = "linux")]
     {
-        let _ = std::process::Command::new("xdg-open")
+        return std::process::Command::new("xdg-open")
             .arg(url)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn()
+            .is_ok();
     }
     #[cfg(target_os = "macos")]
     {
-        let _ = std::process::Command::new("open").arg(url).spawn();
+        return std::process::Command::new("open").arg(url).spawn().is_ok();
     }
+    #[allow(unreachable_code)]
+    false
 }
