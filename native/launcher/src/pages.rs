@@ -1609,10 +1609,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 ));
             }
         }));
-    } else {
-        nav = nav.child(rect().width(Size::px(60.)));
     }
-    nav = nav.child(rect().width(Size::flex(1.)));
     if step < 6 {
         nav = nav.child(
             Button::new()
