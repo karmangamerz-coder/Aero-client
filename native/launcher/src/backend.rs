@@ -832,14 +832,23 @@ async fn launch_instance(
 ) {
     let result: anyhow::Result<()> = async {
         let instance = installer.store.read(&id).await?;
-        let account = state
+        let mut account = state
             .borrow()
             .accounts
             .active_account()
             .cloned()
             .ok_or_else(|| anyhow::anyhow!("Sign in with a Microsoft account to play"))?;
-        ensure_account(&account)?;
         let settings = state.borrow().settings.clone();
+        if !account.is_active_token() {
+            state.send_modify(|s| s.message = "Refreshing the Microsoft session…".into());
+            let client = auth::client()?;
+            account = auth::renew(&client, &account, &settings.microsoft_client_id).await?;
+            let mut accounts = state.borrow().accounts.clone();
+            accounts.upsert(account.clone());
+            auth::save_accounts(&installer.store.root, &accounts).await?;
+            state.send_modify(|s| s.accounts = accounts);
+        }
+        ensure_account(&account)?;
         let memory = launch::effective_memory(&instance, settings.memory_mib);
         let java = if !instance.java_path.trim().is_empty() {
             Some(std::path::PathBuf::from(instance.java_path.trim()))

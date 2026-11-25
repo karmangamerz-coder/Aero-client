@@ -14,10 +14,12 @@ and without exposing tokens.
    system browser at `microsoft.com/link`, and polls the token endpoint. No embedded web
    view, no password field, no client secret. Polling is a supervised Tokio task that
    honours cancellation and the server-provided interval.
-2. **Client identity is configurable.** The default public client id is
-   `00000000402b5328` (the public Minecraft launcher client). `AERO_MS_CLIENT_ID`
-   overrides it so the owner can register their own Azure public client before a public
-   release. A client id identifies the application, never a user, and is not a secret.
+2. **Aero owns its client identity.** The owner registers an Azure public-client application
+   supporting personal Microsoft accounts and enables public client flows. Its Application
+   (client) ID is provided in Settings or `AERO_MS_CLIENT_ID`. Aero has no built-in identity
+   and never borrows the legacy Minecraft Launcher ID or another launcher's registration.
+   A client ID identifies an application, never a user, and is not a secret; client secrets
+   are neither needed nor accepted by this device-code design.
 3. **Ownership is verified, never bypassed.** `/entitlements/mcstore` must contain
    `product_minecraft` or `game_minecraft`; otherwise sign-in fails with an explicit
    message. No offline or "demo" mode.
@@ -43,8 +45,8 @@ and without exposing tokens.
 ## Consequences
 - Users never type a Microsoft password into Aero, and Aero holds no client secret.
 - Sign-in needs a network connection and a browser; the code expires after ~15 minutes.
-- Until the owner registers an Azure app, the default client id may be rate-limited or
-  withdrawn by Microsoft; the override exists for that reason.
+- Until the owner configures an Azure public-client application, sign-in remains unavailable
+  with an actionable explanation; offline instance and settings management still work.
 - Non-Windows builds can run the whole chain but store accounts unencrypted; the shipping
   target is Windows, where DPAPI is used.
 - Launch correctness depends on the installation plan and metadata, so a partially

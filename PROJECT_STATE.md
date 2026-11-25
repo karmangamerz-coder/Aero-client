@@ -24,19 +24,30 @@ Minecraft, signing or benchmark evidence that does not exist.
 - native CI: Windows setup/portable/checksums, tagged release publishing and Linux/macOS
   workspace checks. Security CI now audits locked Maven and Rust dependencies.
 - GPL-3.0-only migration and ADRs 0009–0011.
+- Responsive Freya layout repair for 1280x720 and larger windows, including unclipped Play,
+  Settings and setup content, true Lite surfaces, immediate theme changes and visible status.
+- Configurable Aero-owned Microsoft public-client identity, immediate device-code feedback,
+  expiry-aware token renewal and sanitized launcher/panic diagnostics.
+- Faceted Modrinth discovery, project/version details, SHA-512 verification where published,
+  and installed-content enable, disable and removal controls.
 
-## Verification in this working copy (2026-11-24)
+## Verification in this working copy (2026-11-25)
 
 - Java 21 client unit tests: 8 passed, 0 failed.
-- Rust compilation could not run locally because Windows Application Control blocked the
-  downloaded rustfmt component and this machine lacks the MSVC linker. GitHub Actions is
-  the authoritative clean Windows/Linux/macOS validation for the pushed commit.
+- Local Rust formatting passes. This machine lacks the MSVC linker, so GitHub Actions is the
+  authoritative clean Windows/Linux/macOS compile, test and Windows packaging environment.
+- Linux and macOS portable checks passed for PR #11 at commit `9a58c4a`; the Windows package
+  job was still running when this state was written. Final results must be recorded before
+  merging.
+- A live device-code request proved the former borrowed legacy client ID is rejected by
+  Microsoft. Aero now requires its own public-client GUID; owning-account login and game
+  launch remain pending that owner-provided registration.
 - Earlier 0.4.0 evidence remains: 30 aero-core tests passed and GitHub Windows release run
   44888560348 succeeded before this pass.
 
 ## Release gates still requiring real environments
 
-1. CI must pass after the push, including Rust format, core tests, all-platform checks,
+1. CI must pass after the final push, including Rust format, core tests, all-platform checks,
    Windows release build, NSIS packaging and dependency audits.
 2. An owning Minecraft account must validate device-code login, DPAPI refresh and real
    launch for supported targets. Credentials and tokens must never be committed.

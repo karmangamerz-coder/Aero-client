@@ -65,6 +65,24 @@ Tokens are protected with Windows DPAPI and excluded from logs, UI text and cras
 Network access happens for an action the player requested; there is no telemetry or news
 polling. Read PRIVACY.md and SECURITY.md before reporting sensitive issues.
 
+### Configure Microsoft sign-in
+
+Aero deliberately does not reuse another launcher's Microsoft application identity. Before
+testing sign-in, the project owner must register an Azure app:
+
+1. In Microsoft Entra **App registrations**, create a registration that supports personal
+   Microsoft accounts (or both organizational and personal accounts).
+2. Under **Authentication > Advanced settings**, enable public client flows. Do not create
+   or commit a client secret; device-code applications are public clients.
+3. Copy the Application (client) ID into **Settings > Microsoft application client ID**,
+   or set `AERO_MS_CLIENT_ID` for a developer run. The value is a public GUID, not a token.
+4. Press **Add account**, follow the displayed `microsoft.com/link` instructions, and use a
+   Microsoft account that owns Minecraft: Java Edition.
+
+Tokens and signing keys must remain outside the repository. A build without a configured
+client ID can still use every offline launcher-management feature, but Add account explains
+what must be configured instead of attempting a misleading legacy identity.
+
 ## Contributing and architecture
 
 Community contributions are welcome. Read CONTRIBUTING.md, CODE_OF_CONDUCT.md, AGENTS.md,

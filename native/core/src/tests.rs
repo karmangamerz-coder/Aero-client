@@ -656,3 +656,29 @@ fn hardware_recommendations_leave_the_system_room() {
     assert_eq!(large.recommended_memory_mib(), 4096);
     assert!(large.recommended_memory_mib() as u64 + 2048 <= large.memory_mib);
 }
+
+#[tokio::test]
+async fn public_microsoft_client_id_persists_with_preferences() {
+    let directory = tempfile::tempdir().unwrap();
+    let settings = crate::Settings {
+        microsoft_client_id: "11111111-2222-3333-4444-555555555555".into(),
+        ..Default::default()
+    };
+    settings.save(directory.path()).await.unwrap();
+    assert_eq!(
+        crate::Settings::load(directory.path())
+            .await
+            .unwrap()
+            .microsoft_client_id,
+        settings.microsoft_client_id
+    );
+}
+
+#[test]
+fn malformed_microsoft_client_id_is_rejected() {
+    let settings = crate::Settings {
+        microsoft_client_id: "not-an-azure-guid".into(),
+        ..Default::default()
+    };
+    assert!(settings.validate().is_err());
+}
