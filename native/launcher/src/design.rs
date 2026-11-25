@@ -505,7 +505,6 @@ pub fn landscape() -> SvgViewer {
         .height(Size::fill())
         .aspect_ratio(AspectRatio::Max)
         .image_cover(ImageCover::Center)
-        .interactive(false)
 }
 
 pub fn logo(size: f32) -> SvgViewer {
