@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! App root: owns all reactive state, routes screens and composes the window. Setup
 //! is shown until it is completed; after that the rail, top bar and pages take over.
 use crate::{backend::Backend, design::*, pages, shell};

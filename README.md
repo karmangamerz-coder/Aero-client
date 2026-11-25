@@ -1,93 +1,73 @@
 # Aero Client
 
-Free, open-source Minecraft Java Edition launcher and client foundations. **MIT** for
-original source; third-party components retain their own licenses.
-Not an official Minecraft product; not affiliated with Mojang or Microsoft.
+Aero Client is a completely free and open-source Minecraft: Java Edition launcher and
+client project. Original source is licensed GPL-3.0-only; third-party components keep
+their own compatible licenses. Aero has no premium tier, subscriptions, paid cosmetics,
+mandatory account, advertising, telemetry, or proprietary modules.
 
-## 0.4.0 — sign-in, launching and a first-launch setup
+This is an independent community project, not an official Minecraft product and not
+affiliated with Mojang or Microsoft. It does not contain Minecraft binaries. Minecraft is
+downloaded from official distribution services after the player signs in with a Microsoft
+account that owns Java Edition.
 
-The launcher is a native Rust desktop application (Freya + Skia, Tokio, Reqwest, Serde)
-with an Aero Light, Aero Dark and Aero Lite design system: a narrow icon-only rail, compact
-top bar with Aero branding and the Microsoft account selector, a home screen built around
-the player's own skin, instance/version/loader selectors and one glossy Launch control, a
-library with per-instance management, Modrinth discovery, downloads with live game logs,
-settings and a seven-step first-launch setup. The JavaFX launcher is retained temporarily
-as a fallback until Windows parity is recorded.
+## 1.0.0-beta.1
 
-Microsoft sign-in uses the official OAuth device-code flow in your browser: Aero never sees
-your password. Xbox Live, XSTS, Minecraft services and the ownership check run in order;
-tokens are sealed with Windows DPAPI and never logged. Launching uses verified metadata,
-the managed Java runtime and the memory you choose, with live logs, cancellation and crash
-report discovery.
+The primary launcher is native Rust using Freya/Skia, Tokio, Reqwest and Serde. It provides
+the Aero Light, Dark and Lite interface, resumable first-launch setup, official Microsoft
+device-code authentication, encrypted Windows account storage, verified Minecraft and Java
+installation, isolated instances, game launching, logs and crash discovery.
 
-M2 installs official Minecraft files for versions present in live metadata: 1.8.9,
-1.21.11, 26.2 and 26.3. Choose Vanilla, compatible stable Fabric for modern versions, or
-Forge 11.15.1.2318 for 1.8.9. Installation supports **Windows 10/11 x64**. Metadata
-determines the required Java runtime; Aero detects compatible game Java, honours an
-explicit custom executable, or downloads and verifies a shared runtime. No manual game
-Java installation is required.
+The v1 completion branch also includes:
 
-Authentication requires an account that owns Minecraft: Java Edition. Aero verifies
-ownership with Microsoft and provides no offline or cracked launch path. Sign-in, launching
-and the setup wizard are implemented. The full setup flow and restart persistence were
-interactively verified on Windows; real sign-in and game launching still require an owning
-account and remain pending; see [PROJECT_STATE](PROJECT_STATE.md). No game files, downloaded
-runtimes, credentials or user data are redistributed in this repository.
+- explicit Modrinth search and hash-verified installation for compatible mods, resource
+  packs and shaders, including required dependency resolution and a recoverable manifest;
+- instance create, rename, duplicate, repair and recoverable removal;
+- an independent Java client foundation with original module metadata, profiles, atomic
+  persistence, normalized HUD placement and push-based media state;
+- auditable Fabric performance presets whose projects are resolved live for the exact game
+  version instead of bundling third-party mod binaries;
+- user-requested GitHub release discovery with strict semantic-version parsing;
+- Windows portable and NSIS installer pipelines, Linux/macOS checks, dependency audits and
+  SHA-256 release manifests.
 
-Downloads support integrity checks, cancellation, bounded retries, partial-file resume,
-cache reuse and repair. Instances isolate saves, configs, mods, resource packs and shader
-packs; verified assets, libraries and runtimes are shared. Advanced installation settings
-(memory, custom Java) live in each instance's management screen.
+Beta means that source and packaging are ready for community testing, not that unperformed
+live checks are being claimed. Real Microsoft sign-in/game launch, version-specific
+Forge/Fabric in-game adapters, Modrinth modpack import, Windows code signing, multi-DPI
+visual QA and benchmark runs still require dedicated validation. See PROJECT_STATE.md.
 
-## Run the native launcher (Windows 11 x64, developers)
+## Build independently
 
-Requires the pinned Rust toolchain from `rust-toolchain.toml` (installed automatically by
-`rustup`) and, on Windows, the MSVC build tools. End users of a packaged build need none of
-this; packaging is M9.
+Requirements for contributors are Rust 1.100, Java 21 and the checked-in Gradle wrapper.
+End users use a release artifact and need none of these tools.
 
-```powershell
-cargo run --release -p aero-launcher          # desktop launcher
-cargo test -p aero-core                       # 30 core and setup regression tests
-cargo run -p aero-core --bin aero-cli -- versions
-cargo run -p aero-core --bin aero-cli -- install 26.3 fabric
-cargo build --release --workspace             # aero-launcher.exe + aero-cli.exe
-```
+    cargo test --locked -p aero-core
+    cargo build --locked --release --workspace
+    ./gradlew clean build
 
-On Linux the code type-checks (`cargo check --workspace`), but linking the GUI needs
-`freetype`, `fontconfig`, `EGL`, `GL` and `GLESv2` development packages. Game installation
-itself is Windows-only and refuses to run elsewhere.
+Windows:
 
-Override storage with `AERO_DATA_DIR=<absolute path>`; the default is
-`%USERPROFILE%\.aero-client\data`. Never point this at an existing unrelated game directory.
+    .\gradlew.bat clean build
 
-## Legacy JavaFX launcher (fallback)
+The launcher and client can be built separately:
 
-```powershell
-.\gradlew.bat :launcher:run
-.\gradlew.bat clean build
-.\gradlew.bat :launcher:packageNative
-```
+    cargo build --locked --release -p aero-launcher
+    ./gradlew :client:build
 
-`launcher` and `client` still build independently (`:launcher:build`, `:client:build`).
-The launcher needs its dependency JARs: use Gradle run, the generated
-`launcher/build/install/launcher/bin/launcher.bat` after `:launcher:installDist`, or the
-portable application image. A bare launcher JAR is not a distribution.
+Set AERO_DATA_DIR to an empty test directory to isolate developer runs. Normal data is
+stored under %USERPROFILE%\.aero-client\data on Windows. Never point it at unrelated
+files.
 
-## Local data and privacy
+## Privacy and authentication
 
-Preferences live in `~/.aero-client/data/launcher-settings.json`; optional custom Java in the
-same folder. Instances, shared assets and managed runtimes are stored there too. Accounts
-live in `accounts.bin`, encrypted with Windows DPAPI on Windows. Setup progress is stored in
-`onboarding.json`, so an interrupted setup resumes. Aero makes no background metadata or
-news request: everything is fetched when you ask for it. No telemetry, premium features,
-paid cosmetics or tracking.
-See [PRIVACY](PRIVACY.md), [architecture](docs/ARCHITECTURE.md),
-[PROJECT_STATE](PROJECT_STATE.md), [ROADMAP](ROADMAP.md) and [contributing](CONTRIBUTING.md).
+Microsoft sign-in uses OAuth 2.0 device code in the system browser; Aero never receives a
+password. Xbox Live, XSTS, Minecraft services and entitlement verification are required.
+Tokens are protected with Windows DPAPI and excluded from logs, UI text and crash reports.
+Network access happens for an action the player requested; there is no telemetry or news
+polling. Read PRIVACY.md and SECURITY.md before reporting sensitive issues.
 
-## Distribution
+## Contributing and architecture
 
-The native launcher is a single executable today, and CI produces a portable Windows ZIP
-with SHA-256 checksums. A polished cargo-packager/NSIS stand-alone installer
-(`AeroClient-Setup.exe`) remains M9 work. The
-JavaFX `:launcher:packageNative` task still produces a development app image with a bundled
-launcher runtime.
+Community contributions are welcome. Read CONTRIBUTING.md, CODE_OF_CONDUCT.md, AGENTS.md,
+ROADMAP.md and the decisions under docs/adr. Do not copy proprietary code or assets from
+Lunar Client, OneClient or any other closed client. OneLauncher and other public projects
+may inform architecture only when their licenses are respected.

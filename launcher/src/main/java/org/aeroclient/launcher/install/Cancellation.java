@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 package org.aeroclient.launcher.install;
 
 import java.io.Closeable;

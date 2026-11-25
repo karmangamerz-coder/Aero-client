@@ -3,9 +3,9 @@ members = ["native/core", "native/launcher"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "1.0.0-beta.1"
 edition = "2024"
-license = "MIT"
+license = "GPL-3.0-only"
 rust-version = "1.100"
 
 [workspace.dependencies]
@@ -19,7 +19,7 @@ sha1 = "0.10"
 hex = "0.4"
 uuid = { version = "1.18", features = ["v4", "v5", "serde"] }
 futures-util = "0.3"
-zip = { version = "6", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 fs2 = "0.4"
 
 [profile.release]
@@ -29,6 +29,5 @@ codegen-units = 1
 strip = "debuginfo"
 
 [workspace.metadata.packager]
-# Production NSIS installer implementation remains M9.
 product-name = "Aero Client"
 identifier = "org.aeroclient.launcher"

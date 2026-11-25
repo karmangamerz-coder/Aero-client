@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 package org.aeroclient.launcher.install;
 
 import java.io.*;
@@ -65,7 +65,7 @@ public final class Downloads implements AutoCloseable {
     private HttpResponse<InputStream> open(URI uri, long offset, Cancellation cancellation) throws IOException, InterruptedException {
         for (int redirects = 0; redirects < 5; redirects++) {
             cancellation.check(); validate(uri);
-            var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(45)).header("User-Agent", "AeroClient/0.2.0");
+            var request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(45)).header("User-Agent", "AeroClient/1.0.0-beta.1");
             if (offset > 0) request.header("Range", "bytes=" + offset + "-");
             var pending = client.sendAsync(request.GET().build(), HttpResponse.BodyHandlers.ofInputStream());
             HttpResponse<InputStream> response;

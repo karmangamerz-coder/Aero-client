@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! Window chrome: narrow icon-only rail, compact top bar with the Aero wordmark and
 //! the Microsoft account selector, and a status strip that appears only while work
 //! is running.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 package org.aeroclient.launcher;
 
 import com.google.gson.JsonObject;

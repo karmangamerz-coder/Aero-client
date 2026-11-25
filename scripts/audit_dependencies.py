@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Audit exact locked Maven dependencies with OSV; fail on errors or known findings."""
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-only
 import json
 from pathlib import Path
 import urllib.request

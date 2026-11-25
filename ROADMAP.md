@@ -1,84 +1,69 @@
 # Product roadmap
 
-## M2.1 — final launcher redesign (implemented, visual QA pending)
-- [x] Home without news or promotional copy: compact top bar with Aero branding, Microsoft
-  account selector at the top-right, narrow icon-only rail.
-- [x] Large character preview using the real skin when signed in and an original Aero
-  fallback skin otherwise, with username and online state.
-- [x] Compact instance, Minecraft version and loader selectors beneath the character.
-- [x] One glossy green Launch control with an instance settings button beside it and
-  installation progress inside the control.
-- [x] Aero Light / Dark / Lite presets applied consistently to every page.
-- [x] Static original landscape, translucent blue glass, subtle gloss, moderate radii,
-  Segoe UI and consistent outline icons; no glow, flares, bubbles or live blur.
-- [ ] Visual QA at 1180×760, 880×560 and high DPI on Windows.
-- Removed: the unfinished news feature (interface, settings, cached requests) is gone for
-  good; Aero issues no background request that the player did not ask for.
+This roadmap separates implemented source from live validation. A checked implementation
+item has code and automated coverage; it does not imply a real account, game session,
+hardware benchmark or signed installer was tested when the project lacks those resources.
 
-## M3 — authentication and Minecraft launching (implemented, runtime verification pending)
-- [x] Official Microsoft OAuth 2.0 device-code sign-in in the system browser (no embedded
-  web view, no password collection), Xbox Live, XSTS and Minecraft services chain.
-- [x] Minecraft ownership verification through the entitlements endpoint; no bypass.
-- [x] Token storage encrypted with Windows DPAPI, automatic refresh, multiple accounts,
-  switching and removal. Tokens never appear in logs, UI text or crash output.
-- [x] Authenticated profile name, UUID and skin retrieval.
-- [x] Launch arguments from verified metadata (modern and legacy formats, loader profiles,
-  platform rules), version-compatible Java, memory allocation, process management.
-- [x] Live game logs, crash-report discovery, launch cancellation and readable errors.
-- [ ] Real sign-in and real 1.8.9 Forge / 26.3 Fabric launches on the reference machine.
+## M1 — launcher foundation (implemented)
 
-## M3-S — first-launch setup (implemented and Windows runtime verified)
-- [x] Seven steps: welcome, Microsoft account (skippable, never blocks browsing), hardware
-  detection with recommendations, appearance with live previews, Minecraft version/loader/
-  Java management, performance preset, summary with create/install/defer.
-- [x] Back/Next/Skip controls, progress saved per step, resume after restart, completion
-  persisted, re-runnable from Settings, never repeated automatically.
-- [x] Backend-owned state machine with expected-step guards prevents repeated queued clicks;
-  Finish persists a completed record and Setup later defers without mutating an instance.
-- [x] Interactive Windows run completed through Summary, created an instance, entered the
-  main launcher and confirmed setup did not repeat after restart.
-- [x] All work happens off the UI thread; no Aero account, no ads and no telemetry.
-- [ ] Custom game folder selection: deferred to M4 with instance management (the wizard
-  states this instead of pretending the setting is wired up).
+- [x] Independent launcher and client builds, persistence, navigation and project policies.
+- [x] Original Aero interface and documented architecture.
 
-## M4 — instance management and Modrinth integration
-- Full instance lifecycle: version/loader changes, per-instance folders, user-selectable
-  game directory, import/export, repair of individual components.
-- Explicit Modrinth marketplace: licensing review, compatibility checks, explicit install
-  and user-data-safe management.
+## M2 / M2-R / M2.1 — installation and native launcher (implemented)
 
-## M5 — in-game client foundation and mod menu
-- Select and review client adapters for target game versions; original, customizable
-  in-game mod menu. Respect every mod license; no copied proprietary implementations.
+- [x] Official metadata, verified game files, assets, libraries and native extraction.
+- [x] Fabric and legacy 1.8.9 Forge profiles without executing remote installer code.
+- [x] Managed compatible Java, integrity, cancellation, retry, repair and isolated instances.
+- [x] Rust/Freya/Skia launcher and Aero Light, Dark and Lite design system.
+- [ ] Complete 100%, 125% and 150% visual QA on Windows.
 
-## M6 — HUD editor, PvP utilities, cosmetics and quality of life
-- HUD editor, PvP-focused utilities, original cosmetics and QoL modules built on the same
-  Aero visual system.
+## M3 / M3-S — authentication, launch and setup (implemented)
 
-## M7 — performance mods, benchmarks and hardware optimisation
-- Performance mod presets integrated with the setup wizard and Settings, real benchmarks on
-  the reference machine, hardware-specific recommendations. Publish only measured values.
+- [x] Microsoft device code, Xbox, XSTS, ownership, profile, skin and DPAPI account store.
+- [x] Verified launch arguments, supervised process, bounded logs and crash discovery.
+- [x] Resumable seven-step setup and safe Setup Later path.
+- [ ] Validate the full chain with an owning account and real 1.8.9/modern game sessions.
 
-## M8 — music integration
-- Privacy-conscious optional music integration with legally sourced, synchronised lyrics.
+## M4 — instances and Modrinth (beta implementation)
 
-## M9 — updates, installers and public release
-- Automatic updates, `AeroClient-Setup.exe`, `AeroClient-Portable.zip`, `SHA256SUMS.txt`,
-  optional shortcuts, uninstaller, icon, version information, notices, signing as
-  appropriate and tested upgrades. End users need no Rust, Cargo, Java or Gradle.
+- [x] Create, rename, duplicate, repair and recoverably remove instances.
+- [x] Search mods, modpacks, resource packs and shaders with version/loader facets.
+- [x] Explicit hash-verified mod/resource-pack/shader install with required dependencies.
+- [x] Per-instance installed-content manifest, reversible enable/disable and removal APIs.
+- [ ] Modrinth modpack import/export, individual update UI and external game directories.
 
-## M1 — foundation and visual refinement (complete)
-- [x] Independent launcher/client builds; settings validation and persistence.
-- [x] Public repository, source policies and architecture records.
-- [x] JavaFX shell: Home, Library, Discover, Downloads, Settings with original Aero styling.
+## M5 — in-game client foundation (beta implementation)
 
-## M2 — installation, runtimes and instance foundations (complete)
-- [x] Official metadata, live availability for 1.8.9, 1.21.11, 26.2 and 26.3.
-- [x] Verified client, libraries, Windows natives and asset installation.
-- [x] Compatible modern Fabric; legacy Forge 1.8.9 without executing installer code.
-- [x] Progress, cancel, retry, interrupted-download recovery and repair.
-- [x] Java detection, validation, automatic download, verification, cache/repair/reuse,
-  explicit custom executable and incompatible-selection fallback.
-- [x] UUID instances with isolated user folders, shared verified files and per-instance
-  memory/Java overrides in the manifest.
-- Scope: Windows 10/11 x64. Authentication and launching live in M3.
+- [x] Adapter-neutral Java registry, categories, search-ready metadata and favorites-ready IDs.
+- [x] Atomic named profiles and settings persistence.
+- [x] Original server-safe module catalog; no cheat or anti-cheat bypass surface.
+- [ ] Ship and validate version-specific Forge/Fabric adapters and the Right Shift menu.
+
+## M6 — HUD and utilities (beta implementation)
+
+- [x] Resolution-independent draggable HUD placement model and scale validation.
+- [x] FPS, CPS, keystrokes, ping, armor/effects, coordinates/direction, toggle input,
+  zoom, crosshair and chat appearance definitions.
+- [ ] Connect every definition to rendered game adapters and complete interactive HUD QA.
+
+## M7 — performance optimisation (beta implementation)
+
+- [x] Potato, Maximum FPS, Balanced and Visual Quality manifests using maintained Modrinth
+  project identities and exact compatibility resolution.
+- [x] No bundled mod binaries; incompatibility fails safely.
+- [ ] Run documented comparative benchmarks and validate each target-version combination.
+
+## M8 — music and lyrics (foundation implemented)
+
+- [x] Event-driven track, artist, artwork, progress, playback state and capability model.
+- [x] No background service polling and graceful empty state.
+- [ ] Windows media-session adapter, in-game overlay and a documented lawful lyrics source.
+
+## M9 — distribution and public release (beta implementation)
+
+- [x] AeroClient-Setup.exe NSIS source, per-user install, optional desktop shortcut,
+  Start Menu entries and uninstaller.
+- [x] AeroClient-Portable.zip and SHA256SUMS.txt generation in Windows CI.
+- [x] Tagged GitHub release upload, Linux/macOS checks, Gradle builds and dependency audits.
+- [x] User-requested semantic-version update discovery; no silent replacement.
+- [ ] Code-sign a stable build and validate clean install, upgrade and uninstall on Windows.

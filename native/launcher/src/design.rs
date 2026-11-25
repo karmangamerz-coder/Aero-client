@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! Aero design system: tokens plus the small set of custom controls used by every
 //! screen. Surfaces are translucent blue glass with one hairline rim and a single
 //! pixel of gloss; nothing animates continuously, so the window only repaints on

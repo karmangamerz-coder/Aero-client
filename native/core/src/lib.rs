@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 pub mod auth;
 pub mod content;
 pub mod hardware;
@@ -6,11 +6,13 @@ pub mod install;
 pub mod launch;
 pub mod net;
 pub mod onboarding;
+pub mod performance;
 pub mod runtime;
 pub mod skin;
 pub mod storage;
 #[cfg(test)]
 mod tests;
+pub mod update;
 pub use auth::{Account, Accounts};
 pub use hardware::{Hardware, Performance};
 pub use install::Installer;

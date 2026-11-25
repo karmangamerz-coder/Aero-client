@@ -1,4 +1,15 @@
-# Architecture (M2)
+# Architecture
+
+The primary desktop launcher is the Cargo workspace under native/. The aero-core crate
+owns storage, verified downloads, installation, authentication, launch, onboarding,
+Modrinth content, performance manifests and release discovery. The aero-launcher crate
+owns only Freya/Skia presentation and its asynchronous command bridge. Blocking work never
+runs on the UI thread.
+
+The Java client module is independent of both launchers. It defines stable original module
+metadata, profiles, HUD placement and media snapshots that version-specific game adapters
+can consume without coupling the core to proprietary Minecraft classes. The JavaFX launcher
+remains a temporary compatibility fallback.
 
 `launcher` and `client` remain independent Java 21 Gradle projects. The client settings
 library is unchanged in behavior. The launcher now uses JavaFX instead of the M1 Swing
@@ -48,8 +59,12 @@ Instance names never become filesystem paths. Schema and UUIDs are validated. Pa
 traversal, Windows reserved names/streams and links escaping roots are rejected. Status
 records interrupted work without claiming it is ready. No instance deletion exists in M2.
 
-## Deferred boundaries
-M3 alone owns authentication/entitlements/token storage and launch commands. Stored M2
-plans explicitly disable launch; no fake session or auth bypass exists. M4 owns the full
-instance manager/Modrinth. M9 owns production setup installer/signing; current jlink and
-jpackage app images remain development distribution output. See ADR 0004 and 0005.
+## Content and release boundaries
+
+Modrinth files are installed only after an explicit action, for an exact compatible game
+version/loader, from trusted hosts, with published hashes and a durable per-instance
+manifest. Required dependencies use the same checks. Removal is recoverable.
+
+Windows CI builds the Rust executable, portable archive, NSIS installer and checksum
+manifest. Tagged builds upload those exact artifacts. Code-signing material and account
+credentials are external secrets and never belong in the source tree. See ADRs 0009–0011.

@@ -6,7 +6,7 @@ settings/instance manifests only; it does not refresh metadata or start download
 
 When you click Refresh, Install, Retry or Repair, Aero connects over HTTPS to the
 following services as needed. They receive your IP address, requested version/artifact
-paths and the `AeroClient/0.2.0` user agent under their own policies:
+paths and the AeroClient/1.0.0-beta.1 user agent under their own policies:
 
 - Mojang/Minecraft: piston-meta.mojang.com, piston-data.mojang.com,
   launchermeta.mojang.com, launcher.mojang.com, libraries.minecraft.net,

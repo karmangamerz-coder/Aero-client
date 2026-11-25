@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::{

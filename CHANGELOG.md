@@ -2,6 +2,30 @@
 
 This project uses Semantic Versioning. Dates use ISO 8601.
 
+## 1.0.0-beta.1 — 2026-11-24
+
+### Added
+- Explicit Modrinth installation for compatible mods, resource packs and shaders with
+  bounded required-dependency resolution, trusted endpoints, checksum verification,
+  per-instance manifests and reversible content management.
+- Original Java client foundation: module registry, immutable profiles, atomic profile
+  storage, normalized HUD layout and event-driven operating-system media snapshots.
+- Transparent Fabric performance preset manifests and user-requested GitHub release
+  discovery with semantic-version validation.
+- NSIS installer source, Windows setup/portable/checksum automation, tagged GitHub release
+  publishing, Linux/macOS native checks and locked Rust dependency auditing.
+- ADRs 0009–0011 documenting content trust, client boundaries, GPL licensing and releases.
+
+### Changed
+- All original Aero source is now GPL-3.0-only. Third-party components retain their own
+  licenses and notices.
+- The project version is aligned across Cargo and Gradle at 1.0.0-beta.1.
+
+### Security
+- Content installation refuses incompatible releases and untrusted download hosts, verifies
+  the publisher-provided SHA-1 and never silently installs or updates projects.
+- Release credentials, signing identities and Microsoft tokens remain outside the repository.
+
 ## 0.4.0 — 2026-11-21
 
 ### Added

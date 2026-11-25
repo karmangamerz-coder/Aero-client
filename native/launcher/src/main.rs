@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use freya::prelude::*;
 mod backend;

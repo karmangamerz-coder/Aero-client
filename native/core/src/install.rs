@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 use crate::{
     Artifact, CancellationToken, DownloadClient, Instance, Loader, Store, TARGETS,
     VERSION_MANIFEST, runtime,
@@ -544,17 +544,15 @@ pub async fn extract_natives(
         for i in 0..zip.len() {
             ensure!(!token.is_cancelled(), "Cancelled");
             let entry = zip.by_index(i)?;
+            let name = entry.name()?.into_owned();
             if entry.is_dir()
-                || entry.name().starts_with("META-INF/")
-                || excludes
-                    .iter()
-                    .any(|prefix| entry.name().starts_with(prefix))
+                || name.starts_with("META-INF/")
+                || excludes.iter().any(|prefix| name.starts_with(prefix))
             {
                 continue;
             }
-            validate_relative(entry.name())?;
+            validate_relative(&name)?;
             ensure!(!entry.is_symlink(), "Native archive links are forbidden");
-            let name = entry.name().to_owned();
             let mut bytes = vec![];
             entry.take(64 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
             total += bytes.len();

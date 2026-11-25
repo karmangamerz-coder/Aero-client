@@ -1,7 +1,7 @@
 # Third-party inventory and redistribution
 
-Original current Aero source: MIT. Third-party components keep their own terms;
-MIT does not relicense Java, JavaFX, Forge, Fabric or Minecraft.
+Original Aero source: GPL-3.0-only. Third-party components keep their own terms;
+GPL-3.0-only does not relicense Java, JavaFX, Forge, Fabric, mods or Minecraft.
 
 | Component | Version | License / use |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Downloads are installed locally at the user's request. Installing a loader does 
 relicense it or establish Minecraft ownership. Future mods need individual license,
 compatibility, source and notice review. GitHub Actions are not application dependencies.
 
-## Native Rust launcher dependencies (Cargo, MIT-compatible)
+## Native Rust launcher dependencies (Cargo, GPLv3-compatible)
 
 | Component | Version | License / use |
 | --- | --- | --- |
@@ -53,6 +53,6 @@ compatibility, source and notice review. GitHub Actions are not application depe
 | zip, sha1, hex, uuid, fs2, futures-util, regex, bytes, anyhow | as locked | Permissive licenses; downloads, integrity and hashing. |
 | windows-sys | 0.61 | MIT/Apache-2.0; DPAPI token sealing and file-system calls on Windows. |
 
-Rust dependency licenses must be re-reviewed with `cargo deny`/`cargo license` before a
-public binary release, and their notices shipped with the M9 installer. Only official
+Rust dependency licenses are audited in CI and must be re-reviewed with cargo-deny or
+cargo-license before a stable binary release. Their notices ship with the installer. Only official
 Microsoft, Mojang, FabricMC, Forge, Modrinth and GitHub endpoints are contacted.

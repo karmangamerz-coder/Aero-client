@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 //! Page composition. No hooks here: all reactive state is owned by the app root and
 //! passed in, so pages stay deterministic and event driven.
 use crate::{
@@ -681,10 +681,14 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     let mut kind = ui.kind;
     let backend = b.clone();
     let current_kind = kind.read().clone();
+    let selected = s.selected.clone();
     let results: Vec<Rect> = s
         .results
         .iter()
         .map(|item| {
+            let backend = b.clone();
+            let instance = selected.clone();
+            let project = item.slug.clone();
             card(p)
                 .width(Size::fill())
                 .child(strong(item.title.clone(), 13.5, p.text))
@@ -694,6 +698,13 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     10.,
                     p,
                 ))
+                .child(
+                    action("Install", p)
+                        .enabled(!s.busy && !instance.is_empty() && item.project_type != "modpack")
+                        .on_press(move |_| {
+                            backend.send(Command::InstallContent(instance.clone(), project.clone()))
+                        }),
+                )
         })
         .collect();
     scroll()
@@ -702,7 +713,7 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .child(section(
                     p,
                     "Discover",
-                    "Modrinth search using public, read-only endpoints. Installing projects arrives with M4.",
+                    "Search Modrinth and install verified compatible mods, resource packs and shaders into the selected instance.",
                 ))
                 .child(
                     rect().horizontal().spacing(8.).cross_align(Alignment::Center)
@@ -1266,7 +1277,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 )
                 .child(summary_row(p, "Installs into", s.storage.clone()))
                 .child(dim(
-                    "Aero manages the matching Java runtime automatically. A custom game folder arrives with M4 instance management.",
+                    "Aero manages the matching Java runtime automatically. External game folders remain disabled in this beta to protect unrelated files.",
                     10.5,
                     p,
                 ))
@@ -1291,7 +1302,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
             let current = w_perf.read().clone();
             content = content
                 .child(strong("Performance", 20., p.text))
-                .child(dim("Presets set game options and Aero's own rendering behaviour. Performance mods arrive with M7; nothing unavailable is claimed here.", 12., p))
+                .child(dim("Presets set memory and Aero rendering behaviour. Compatible performance mod manifests are available through the M7 core.", 12., p))
                 .child(
                     rect().width(Size::fill()).spacing(6.).children(Performance::all().into_iter().map(|preset| {
                         let label = preset.label().to_owned();
