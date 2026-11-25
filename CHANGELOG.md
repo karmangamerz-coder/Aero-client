@@ -38,6 +38,8 @@ This project uses Semantic Versioning. Dates use ISO 8601.
 ### Fixed
 - Play, Settings and first-run setup no longer overlap or clip at the supported minimum
   window size; background artwork no longer captures pointer interaction.
+- The landscape now covers the full root instead of exposing side bands, and Discover keeps
+  its Search control inside the content area at 1280px and the supported minimum width.
 - Sign-in reports missing configuration and browser-opening failures immediately instead of
   appearing unresponsive, and launcher/panic diagnostics omit token-bearing payloads.
 

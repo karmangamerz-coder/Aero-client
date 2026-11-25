@@ -878,6 +878,24 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .child(
                     rect().horizontal().width(Size::fill()).spacing(8.).cross_align(Alignment::Center)
                         .child(rect().width(Size::flex(1.)).child(Input::new(query).placeholder("Search Modrinth")))
+                        .child(rect().width(Size::px(100.)).child(
+                            action("Search", p).enabled(!s.busy).on_press({
+                                let backend = backend.clone();
+                                move |_| {
+                                    backend.send(Command::Discover(
+                                        query.read().clone(),
+                                        kind.read().clone(),
+                                        version.read().clone(),
+                                        loader.read().clone(),
+                                        category.read().clone(),
+                                        sort.read().clone(),
+                                    ))
+                                }
+                            }),
+                        )),
+                )
+                .child(
+                    rect().horizontal().width(Size::fill()).spacing(8.)
                         .child(rect().width(Size::px(130.)).child(
                             Select::new().selected_item(current_kind.clone()).children(
                                 ["mod", "modpack", "resourcepack", "shader"].into_iter().map(|value| {
@@ -889,22 +907,6 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 }),
                             ),
                         ))
-                        .child(action("Search", p).enabled(!s.busy).on_press({
-                            let backend = backend.clone();
-                            move |_| {
-                                backend.send(Command::Discover(
-                                    query.read().clone(),
-                                    kind.read().clone(),
-                                    version.read().clone(),
-                                    loader.read().clone(),
-                                    category.read().clone(),
-                                    sort.read().clone(),
-                                ))
-                            }
-                        })),
-                )
-                .child(
-                    rect().horizontal().width(Size::fill()).spacing(8.)
                         .child(rect().width(Size::px(135.)).child(
                             Select::new().selected_item(if current_version.is_empty() { "All versions".into() } else { current_version.clone() }).children(
                                 std::iter::once("").chain(TARGETS).map(|value| {

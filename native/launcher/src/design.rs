@@ -503,7 +503,9 @@ pub fn landscape() -> SvgViewer {
         .position(Position::new_absolute())
         .width(Size::fill())
         .height(Size::fill())
-        .aspect_ratio(AspectRatio::Max)
+        // Cover the complete root. `Max` contains the artwork and exposes side
+        // bands whenever the window is wider than the SVG's aspect ratio.
+        .aspect_ratio(AspectRatio::Min)
         .image_cover(ImageCover::Center)
 }
 
