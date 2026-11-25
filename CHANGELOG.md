@@ -38,6 +38,8 @@ This project uses Semantic Versioning. Dates use ISO 8601.
 ### Fixed
 - Play, Settings and first-run setup no longer overlap or clip at the supported minimum
   window size; background artwork no longer captures pointer interaction.
+- Setup reserves a fixed responsive viewport for step content, keeping Next and Skip setup
+  visible at the supported 640px client height while longer steps scroll internally.
 - The landscape now covers the full root instead of exposing side bands, and Discover keeps
   its Search control inside the content area at 1280px and the supported minimum width.
 - Sign-in reports missing configuration and browser-opening failures immediately instead of

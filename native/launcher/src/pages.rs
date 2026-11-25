@@ -1670,6 +1670,10 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     let _ = w_auto;
 
     let wizard_width = (ui.window_width - 40.).clamp(620., 760.);
+    // A flexible ScrollView keeps its content's intrinsic height in Freya and can
+    // push the navigation row below a short window. Reserve the header, footer,
+    // panel padding and gaps explicitly; long steps scroll inside this viewport.
+    let wizard_body_height = (ui.window_height - 210.).clamp(300., 780.);
     rect()
         .expanded()
         .padding((16., 20.))
@@ -1696,7 +1700,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .child(
                     ScrollView::new()
                         .width(Size::fill())
-                        .height(Size::flex(1.))
+                        .height(Size::px(wizard_body_height))
                         .child(content),
                 )
                 .maybe(!s.message.is_empty() && s.message != "Ready.", |r| {
