@@ -5,7 +5,7 @@ def arm = System.getProperty('os.arch').contains('aarch64')
 def fxPlatform = hostOs.contains('windows') ? 'win' : hostOs.contains('mac') ? (arm ? 'mac-aarch64' : 'mac') : (arm ? 'linux-aarch64' : 'linux')
 configurations { platformVerification }
 dependencies {
-    implementation 'com.google.code.gson:gson:2.13.2'
+    implementation 'com.google.code.gson:gson:2.15.0'
     ['base', 'graphics', 'controls'].each { module ->
         implementation("org.openjfx:javafx-${module}:21.0.13:${fxPlatform}") { transitive = false }
         ['win', 'linux', 'mac', 'mac-aarch64', 'linux-aarch64'].each { target ->
