@@ -10,6 +10,7 @@ mod ui;
 
 fn main() {
     install_panic_reporter();
+    let (window_width, window_height) = initial_window_size();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
@@ -33,13 +34,29 @@ fn main() {
             .with_window(
                 WindowConfig::new_app(ui::Aero { backend })
                     .with_title("Aero Client")
-                    .with_size(1180., 760.)
+                    .with_size(window_width, window_height)
                     // The responsive shell is verified down to this supported size.
                     // Refusing a smaller surface avoids hiding required setup and
                     // launch controls behind the native window frame.
                     .with_min_size(1000., 640.),
             ),
     );
+}
+
+fn initial_window_size() -> (f64, f64) {
+    fn dimension(name: &str, fallback: f64, minimum: f64) -> f64 {
+        std::env::var(name)
+            .ok()
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|value| value.is_finite())
+            .map(|value| value.max(minimum))
+            .unwrap_or(fallback)
+    }
+
+    (
+        dimension("AERO_WINDOW_WIDTH", 1180., 1000.),
+        dimension("AERO_WINDOW_HEIGHT", 760., 640.),
+    )
 }
 
 fn install_panic_reporter() {

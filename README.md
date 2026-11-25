@@ -57,6 +57,10 @@ Set AERO_DATA_DIR to an empty test directory to isolate developer runs. Normal d
 stored under %USERPROFILE%\.aero-client\data on Windows. Never point it at unrelated
 files.
 
+Visual QA can start a deterministic window by setting `AERO_WINDOW_WIDTH` and
+`AERO_WINDOW_HEIGHT`; invalid values fall back to 1180x760 and the supported minimum remains
+1000x640. These variables affect only the initial window dimensions.
+
 ## Privacy and authentication
 
 Microsoft sign-in uses OAuth 2.0 device code in the system browser; Aero never receives a
