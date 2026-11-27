@@ -32,4 +32,3 @@ configured data directory. Back up saves before manually removing an instance or
 
 Developer builds contact Cargo, Gradle and Maven registries. GitHub receives source, PR and
 CI data submitted there. Credentials, signing keys and tokens must never be committed.
-

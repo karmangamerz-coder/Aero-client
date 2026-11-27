@@ -10,10 +10,10 @@ and full-window artwork fixes from the preceding refinement branch.
 
 ## Before signing in
 
-Aero's own Microsoft Application ID must be configured and authorized for Minecraft API
-access. No project-owned approved ID was available during this release's development.
-The build therefore explains missing configuration; successful live owning-account login,
-family-policy handling against Microsoft and actual game launch remain unverified.
+Aero's project-supplied Microsoft Application ID is configured through the release build's
+repository variable. Microsoft recognized the registration during an initial request, but
+Minecraft API approval and successful live owning-account login have not been confirmed.
+Family-policy handling against Microsoft and actual game launch remain unverified.
 See README.md for registration, desktop redirect URI and configuration instructions.
 Players should not each create Azure registrations: this is one project-owner setup.
 

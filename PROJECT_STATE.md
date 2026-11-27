@@ -42,16 +42,20 @@ a source implementation does not imply all live game adapters or benchmarks are 
 - Tests cover CSRF mismatch, duplicate callback fields, callback cancellation/denial,
   listener closure/replay rejection, refresh rotation, application binding, metadata secrecy,
   Java entitlements, family/approval errors, head rendering and launch-token redaction.
-- No approved Aero Application ID or live owning account was supplied. Successful Microsoft
-  login, real family-policy responses and actual Minecraft game launches remain unverified.
+- The owner supplied a Microsoft Application ID on 2026-11-27. It is configured in GitHub's
+  AERO_MS_CLIENT_ID repository variable for release builds. Microsoft recognized the ID in
+  an initial request and routed the PKCE request to sign-in. A device-flow diagnostic said
+  the registration was not enabled for that feature; Aero uses browser PKCE instead.
+  Minecraft API approval, desktop redirect configuration, successful live Microsoft login,
+  real family-policy responses and actual game launches still require owning-account testing.
 - Earlier visual testing exposed and corrected flex sizing, setup footer and SVG coverage.
   Complete 1280x720/1920x1080 and multi-DPI screenshot verification is still open; do not
   describe clipped desktop captures as full-resolution evidence.
 
 ## Remaining release/platform gates
 
-- Provide Aero's own registered and Minecraft-authorized Application ID to validate the
-  complete live flow. End users should not need separate Azure registrations.
+- Validate the supplied Application ID's desktop callback and Minecraft authorization with
+  an owning account. End users should not need separate Azure registrations.
 - Run native macOS/Linux vault tests in unlocked user sessions; current CI checks compilation.
 - Validate 1.8.9/modern Minecraft sessions, version-specific game adapters, media integration,
   modpack import and comparative performance benchmarks as tracked in ROADMAP.md.
