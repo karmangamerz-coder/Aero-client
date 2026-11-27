@@ -71,3 +71,12 @@ hardware benchmark or signed installer was tested when the project lacks those r
 - [x] Tagged GitHub release upload, Linux/macOS checks, Gradle builds and dependency audits.
 - [x] User-requested semantic-version update discovery; no silent replacement.
 - [ ] Code-sign a stable build and validate clean install, upgrade and uninstall on Windows.
+
+## 2.1 refinement
+
+- [x] Silver Vista-inspired native UI with original assets and labeled navigation.
+- [x] Required once-only setup, persisted completion and no Skip/defer action.
+- [x] Modrinth default/filter correction and Vanilla mod-install guard.
+- [x] Explicit distinction between OAuth authorization and verified Minecraft sign-in.
+- [ ] Resolve Minecraft Services application rejection and verify owning-account login.
+- [ ] Finish full-window/multi-DPI visual QA of the revised interface.

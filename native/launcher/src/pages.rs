@@ -73,6 +73,15 @@ fn parse_loader(value: &str) -> Loader {
 // --------------------------------------------------------------------- play
 
 pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
+    let p = if p.photo {
+        Palette {
+            art_text: Color::WHITE,
+            art_dim: Color::from_rgb(219, 235, 245),
+            ..p
+        }
+    } else {
+        p
+    };
     let compact = ui.window_height < 720.;
     let (character_width, character_height) = if compact {
         (155., 254.)
@@ -244,10 +253,17 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
 
     rect()
         .expanded()
-        .padding((0., 0.))
+        .padding((14., 18.))
         .child(
             rect()
                 .expanded()
+                .corner_radius(14.)
+                .background(if p.photo {
+                    Color::from_rgb(82, 119, 146)
+                } else {
+                    p.glass
+                })
+                .border(rim(p))
                 .padding(if compact {
                     (10., 18., 12., 18.)
                 } else {
@@ -786,6 +802,9 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 .enabled(
                                     !s.busy
                                         && !instance.is_empty()
+                                        && (item.project_type != "mod"
+                                            || chosen(s)
+                                                .is_some_and(|i| i.loader != Loader::Vanilla))
                                         && item.project_type != "modpack",
                                 )
                                 .on_press(move |_| {
@@ -955,7 +974,7 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .child(strong("Search results", 14., p.text))
                 .child(rect().width(Size::fill()).spacing(8.).children(results))
                 .maybe(s.results.is_empty(), |r| {
-                    r.child(hint(p, if s.busy { "Loading Modrinth…" } else { "Search results will appear here." }))
+                    r.child(hint(p, if s.busy { "Loading Modrinth…" } else { "No projects shown. Search Modrinth, or clear the version, loader and category filters and try again." }))
                 })
                 .child(strong("Installed content", 14., p.text))
                 .child(rect().width(Size::fill()).spacing(8.).children(installed))
@@ -1370,7 +1389,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     p,
                 ))
                 .child(dim(
-                    "Ownership is verified with Microsoft. Aero cannot and will not bypass it. You can skip this step and browse the launcher without signing in.",
+                    "Ownership is verified with Microsoft. You may continue setup without an account, but playing requires successful Minecraft verification.",
                     11.5,
                     p,
                 ))
@@ -1659,28 +1678,13 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 }),
         );
     }
-    nav = nav.child(
-        ghost(
-            if step == onboarding::LAST_STEP {
-                "Open the launcher"
-            } else {
-                "Skip setup"
-            },
-            p,
-        )
-        .enabled(!s.busy)
-        .on_press({
+    if step == onboarding::LAST_STEP {
+        nav = nav.child(ghost("Finish setup", p).enabled(!s.busy).on_press({
             let backend = backend.clone();
             let answers = base.clone();
-            move |_| {
-                if step == onboarding::LAST_STEP {
-                    backend.send(Command::FinishSetup(step, answers.clone(), false));
-                } else {
-                    backend.send(Command::DeferSetup(step, answers.clone()));
-                }
-            }
-        }),
-    );
+            move |_| backend.send(Command::FinishSetup(step, answers.clone(), false))
+        }));
+    }
     let _ = w_auto;
 
     let wizard_width = (ui.window_width - 40.).clamp(620., 760.);

@@ -72,7 +72,7 @@ impl DownloadClient {
                 .redirect(reqwest::redirect::Policy::none())
                 .connect_timeout(Duration::from_secs(20))
                 .read_timeout(Duration::from_secs(30))
-                .user_agent("AeroClient/2.0.0 (+https://github.com/karmangamerz-coder/Aero-client)")
+                .user_agent("AeroClient/2.1.0 (+https://github.com/karmangamerz-coder/Aero-client)")
                 .build()?,
             test_origin: None,
             report,

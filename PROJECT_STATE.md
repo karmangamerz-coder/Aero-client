@@ -2,13 +2,28 @@
 
 ## Current release
 
-Version: 2.0.0
+Version: 2.1.0
 Primary platform: Windows 10/11 x64
 Original-source license: GPL-3.0-only
 
 The native Rust/Freya launcher is primary; the Java client and JavaFX fallback remain
 independently buildable. M4–M9 contain the implemented foundations listed in ROADMAP.md;
 a source implementation does not imply all live game adapters or benchmarks are finished.
+
+## 2.1 refinement
+
+- Silver glass chrome, labeled sidebar, original vector background and blue inset Play panel.
+  Existing Dark/Lite preferences remain respected.
+- Removed setup skipping/defer commands. Valid completed records stay completed even if
+  an upgrade retires their saved version/schema; interrupted setup still resumes.
+- Modrinth browser defaults to unfiltered version/loader; project detail ignores Vanilla
+  as a loader filter. Mod installation refuses Vanilla instances before fetching files.
+- OAuth callback no longer implies full success. Generation-guarded verification progress
+  and persistent in-app failures explain why an account has not been saved.
+- Local user log reported Minecraft registration rejection after OAuth. This is an external
+  authorization gate, not evidence of successful login. Never bypass it or borrow an ID.
+- Local formatting can run; local tests cannot link without MSVC. New regression tests and
+  platform packaging must be verified by the feature PR's GitHub Actions before release.
 
 ## Authentication architecture (2026-11-27)
 
@@ -29,7 +44,7 @@ a source implementation does not imply all live game adapters or benchmarks are 
   safe diagnostic formatting and redaction of known tokens from captured game output.
 - README.md, PRIVACY.md, SECURITY.md and ADR 0012 describe registration, approval,
   storage/logout semantics, upgrade behavior and security boundaries.
-- Cargo/Gradle, Windows installer and user agent align at 2.0.0. Auth library license texts
+- Cargo/Gradle, Windows installer and user agent align at 2.1.0. Auth library license texts
   ship under third-party/auth. Tagged builds publish installer/portable/SHA-256 artifacts.
 
 ## Verification

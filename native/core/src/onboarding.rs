@@ -13,7 +13,6 @@ pub const LAST_STEP: usize = STEPS - 1;
 pub enum Direction {
     Next,
     Back,
-    Skip,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -119,13 +118,6 @@ impl Progress {
                 expected_step + 1
             }
             Direction::Back => expected_step.saturating_sub(1),
-            Direction::Skip => {
-                ensure!(
-                    matches!(expected_step, 1 | 2),
-                    "This setup step is required"
-                );
-                expected_step + 1
-            }
         };
         Ok(Self {
             completed: false,
@@ -144,22 +136,6 @@ impl Progress {
         Ok(Self {
             completed: true,
             step: LAST_STEP as u8,
-            answers,
-        })
-    }
-
-    /// Explicit recovery path. It opens the launcher without creating, installing or
-    /// changing an instance; ownership is still required before game launch.
-    pub fn defer(&self, expected_step: usize, answers: Onboarding) -> Result<Self> {
-        ensure!(!self.completed, "Setup is already complete");
-        ensure!(
-            self.current_step() == expected_step,
-            "Setup changed; try again"
-        );
-        answers.validate()?;
-        Ok(Self {
-            completed: true,
-            step: expected_step as u8,
             answers,
         })
     }
@@ -215,12 +191,24 @@ pub fn file(root: &Path) -> std::path::PathBuf {
 pub async fn load(root: &Path) -> Progress {
     let path = file(root);
     match fs::read(&path).await {
-        Ok(bytes) => serde_json::from_slice::<Progress>(&bytes)
-            .ok()
-            .filter(|progress| {
-                progress.step as usize <= LAST_STEP && progress.answers.validate().is_ok()
-            })
-            .unwrap_or_default(),
+        Ok(bytes) => {
+            let Ok(mut progress) = serde_json::from_slice::<Progress>(&bytes) else {
+                return Progress::default();
+            };
+            // Completion is independent of old answer schemas/targets. A future
+            // upgrade must never force a completed installation back into setup.
+            if progress.completed {
+                if progress.answers.validate().is_err() {
+                    progress.answers = Onboarding::default();
+                }
+                progress.step = LAST_STEP as u8;
+                progress
+            } else if progress.step as usize <= LAST_STEP && progress.answers.validate().is_ok() {
+                progress
+            } else {
+                Progress::default()
+            }
+        }
         Err(_) => Progress::default(),
     }
 }

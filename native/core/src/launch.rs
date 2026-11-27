@@ -25,7 +25,7 @@ use std::{
 use tokio::{fs, io::AsyncBufReadExt, process::Child};
 
 pub const LAUNCHER_BRAND: &str = "Aero Client";
-pub const LAUNCHER_VERSION: &str = "2.0.0";
+pub const LAUNCHER_VERSION: &str = "2.1.0";
 
 #[derive(Clone)]
 pub struct LaunchSpec {

@@ -95,6 +95,7 @@ pub enum Command {
     RemoveContent(String, String),
     SignIn,
     CancelSignIn,
+    SignInStage(u64),
     CompleteSignIn(u64, Result<Account, String>),
     SwitchAccount(String),
     SignOut,
@@ -103,7 +104,6 @@ pub enum Command {
     DetectHardware,
     NavigateSetup(onboarding::Direction, usize, onboarding::Onboarding),
     FinishSetup(usize, onboarding::Onboarding, bool),
-    DeferSetup(usize, onboarding::Onboarding),
     ReopenSetup,
     Select(String),
     Target(String, Loader),
@@ -283,6 +283,7 @@ impl Backend {
                                 let login = auth::begin(&configured).await?;
                                 anyhow::ensure!(open_browser(&login.authorization_url), "Could not open your default browser. Check the default-browser setting and retry.");
                                 let tokens = login.complete(&client, &token).await?;
+                                let _ = completed.send(Command::SignInStage(generation)).await;
                                 tokio::select! {
                                     _ = token.cancelled() => anyhow::bail!("Microsoft sign-in cancelled."),
                                     result = auth::finish(&client, &tokens) => Ok(result?.0),
@@ -295,6 +296,11 @@ impl Backend {
                                 ))
                                 .await;
                         });
+                    }
+                    Command::SignInStage(generation) => {
+                        if generation == signin_generation && state.borrow().authenticating {
+                            state.send_modify(|s| s.signin_state = "Microsoft authorized. Checking Xbox access and Minecraft Java ownership…".into());
+                        }
                     }
                     Command::CompleteSignIn(generation, result) => {
                         if generation != signin_generation {
@@ -708,6 +714,7 @@ async fn handle(
         Command::Launch(_)
         | Command::SignIn
         | Command::CancelSignIn
+        | Command::SignInStage(_)
         | Command::CompleteSignIn(_, _) => unreachable!(),
         Command::DetectHardware => {
             let detected = tokio::task::spawn_blocking(hardware::detect)
@@ -823,21 +830,6 @@ async fn handle(
                 });
             }
             Ok("Setup complete.".into())
-        }
-        Command::DeferSetup(expected_step, answers) => {
-            let progress = state
-                .borrow()
-                .onboarding
-                .defer(expected_step, answers)
-                .map_err(|e| format!("Cannot defer setup: {e:#}"))?;
-            onboarding::save(&installer.store.root, &progress)
-                .await
-                .map_err(|e| format!("Cannot save setup choice: {e:#}"))?;
-            state.send_modify(|s| {
-                s.onboarding = progress;
-                s.message = "Setup deferred. You can run it again from Settings.".into();
-            });
-            Ok("Setup deferred. You can run it again from Settings.".into())
         }
     }
 }

@@ -1,37 +1,25 @@
-# Aero Client 2.0.0
+# Aero Client 2.1.0
 
-Native Windows launcher release with Microsoft browser authorization-code PKCE (S256),
-Xbox/XSTS/Minecraft library integration and OS credential-vault refresh storage.
-Includes account switching, cancellation, local logout/removal, session renewal before
-launch, skin avatar/body presentation and safe authentication errors.
+Silver Vista-inspired refinement: labeled navigation, silver glass surfaces, original static
+vector folds and a blue inset Play panel. Existing appearance preferences remain respected.
 
-The release also includes the responsive Freya UI, setup-navigation, Modrinth filtering
-and full-window artwork fixes from the preceding refinement branch.
+Setup is required once, resumes after interruption and has no Skip action. Completed
+installations keep their completion state across upgrades. Settings can rerun setup.
 
-## Before signing in
+Modrinth discovery begins with all versions and loaders. Project details no longer send
+"vanilla" as a loader filter; mods require a compatible Fabric/Forge instance. Installation
+still resolves exact instance compatibility and verifies published file hashes.
+Modpack import remains unavailable.
 
-Aero's project-supplied Microsoft Application ID is configured through the release build's
-repository variable. Microsoft recognized the registration during an initial request, but
-Minecraft API approval and successful live owning-account login have not been confirmed.
-Family-policy handling against Microsoft and actual game launch remain unverified.
-See README.md for registration, desktop redirect URI and configuration instructions.
-Players should not each create Azure registrations: this is one project-owner setup.
+Microsoft's browser callback now clearly says sign-in is still pending. Aero displays
+verification progress and persistent errors instead of implying a browser callback has
+added an account. **Live sign-in remains blocked by a reported Minecraft registration
+rejection.** The project owner must resolve authorization for Aero's own client ID.
+This build does not borrow IDs, bypass ownership or bypass family restrictions.
 
-Account storage changed incompatibly from the older DPAPI file. Sign in again to store
-credentials in Windows Credential Manager. Instances and game saves remain intact.
-Sign out removes the active local credential, not Microsoft browser cookies or other devices.
+Windows installer and portable archive include dependency notices; SHA256SUMS.txt verifies
+both downloads. Existing accounts, instances and saves are preserved. Builds are unsigned.
+Linux/macOS compile checks do not establish supported game launch on those platforms.
 
-## Downloads and verification
-
-- AeroClient-Setup.exe: per-user Windows installer.
-- AeroClient-Portable.zip: standalone Windows launcher and CLI.
-- SHA256SUMS.txt: SHA-256 checksums for both artifacts.
-
-Original source is GPL-3.0-only; bundled dependency notices are included. Minecraft binaries
-are downloaded from official services and are not redistributed. Windows binaries are
-unsigned and may be blocked by application-control policy; signing remains future work.
-Linux/macOS have compile checks, not supported game-launch binaries in this release.
-
-Automated verification covers core security cases and a synthetic Windows Credential Manager
-roundtrip, plus Gradle tests and dependency audits. It is not a substitute for the live
-account and platform tests noted above.
+See README.md and PROJECT_STATE.md for configuration, test results and remaining live
+authentication, platform and visual validation.

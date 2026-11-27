@@ -51,7 +51,12 @@ impl App for Aero {
         let theme_state = use_init_theme(|| theme(&settings.appearance));
         let mut ui = Ui {
             window_width: window_size.width,
-            window_height: window_size.height,
+            window_height: window_size.height
+                - if snapshot.signin_state.is_empty() || snapshot.onboarding.needs_setup() {
+                    0.
+                } else {
+                    112.
+                },
             page: use_state(|| 0usize),
             detail: use_state(String::new),
             appearance: use_state(|| settings.appearance.clone()),
@@ -67,8 +72,8 @@ impl App for Aero {
             search: use_state(String::new),
             query: use_state(String::new),
             kind: use_state(|| "mod".to_owned()),
-            mod_version: use_state(|| snapshot.onboarding.answers.version.clone()),
-            mod_loader: use_state(|| snapshot.onboarding.answers.loader.to_lowercase()),
+            mod_version: use_state(String::new),
+            mod_loader: use_state(String::new),
             mod_category: use_state(String::new),
             mod_sort: use_state(|| "relevance".to_owned()),
             confirm: use_state(String::new),
@@ -125,6 +130,9 @@ impl App for Aero {
                         .height(Size::fill())
                         .content(Content::Flex)
                         .child(shell::top_bar(&ui, &snapshot, p, &backend))
+                        .maybe(!snapshot.signin_state.is_empty(), |r| {
+                            r.child(shell::auth_notice(&snapshot, p))
+                        })
                         .child(
                             rect()
                                 .width(Size::fill())

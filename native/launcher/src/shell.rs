@@ -19,8 +19,7 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
         .spacing(6.)
         .cross_align(Alignment::Center)
         .background(p.rail)
-        .border(Border::new().width(1.).fill(p.border_soft))
-        .maybe(p.photo, |r| r.backdrop_blur(12.));
+        .border(Border::new().width(1.).fill(p.border_soft));
     rail = rail.child(
         rect()
             .width(Size::px(40.))
@@ -31,12 +30,44 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
     rail = rail.child(hairline(p));
     for (index, (label, _)) in NAV.iter().enumerate() {
         let selected = page.read().eq(&index);
-        rail = rail.child(TooltipContainer::new(Tooltip::new_text(*label)).child(
-            nav_button(index, selected, p).on_press(move |_| {
-                page.set(index);
-                detail.set(String::new());
-            }),
-        ));
+        rail = rail.child(
+            Button::new()
+                .theme_layout(
+                    ButtonLayoutThemePartial::default()
+                        .width(Size::px(RAIL_WIDTH - 18.))
+                        .height(Size::px(38.))
+                        .corner_radius(6.)
+                        .padding((0., 10.)),
+                )
+                .theme_colors(
+                    ButtonColorsThemePartial::default()
+                        .color(p.text)
+                        .background(if selected {
+                            p.accent_soft
+                        } else {
+                            Color::TRANSPARENT
+                        })
+                        .hover_background(p.surface)
+                        .border_fill(if selected {
+                            p.border
+                        } else {
+                            Color::TRANSPARENT
+                        })
+                        .focus_border_fill(p.accent),
+                )
+                .child(
+                    rect()
+                        .horizontal()
+                        .spacing(10.)
+                        .cross_align(Alignment::Center)
+                        .child(icon(index, p, selected))
+                        .child(text(*label, 13., p.text)),
+                )
+                .on_press(move |_| {
+                    page.set(index);
+                    detail.set(String::new());
+                }),
+        );
     }
     rail
 }
@@ -81,7 +112,6 @@ pub fn top_bar(_ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Rect {
         .cross_align(Alignment::Center)
         .background(p.glass_soft)
         .border(Border::new().width(1.).fill(p.border_soft))
-        .maybe(p.photo, |r| r.backdrop_blur(10.))
         .child(logo(24.))
         .child(strong("Aero Client", 15.5, p.art_text))
         .child(rect().width(Size::flex(1.)))
@@ -150,4 +180,17 @@ pub fn status_strip(
         10.5,
         p,
     ))
+}
+
+pub fn auth_notice(s: &Snapshot, p: Palette) -> Rect {
+    rect().width(Size::fill()).height(Size::px(112.))
+        .padding((9., 16.)).spacing(5.)
+        .background(p.surface).border(Border::new().width(1.).fill(p.border))
+        .child(strong(if s.authenticating { "Completing Microsoft sign-in…" } else { "Sign-in could not finish" }, 13., if s.authenticating { p.accent } else { p.danger }))
+        .child(text(s.signin_state.clone(), 12., p.text))
+        .child(dim(if s.authenticating {
+            "Keep Aero open. Your account appears only after Minecraft verification succeeds."
+        } else {
+            "Retry from the account menu. Registration approval errors require approval for Aero's own client ID; browser authorization alone is insufficient."
+        }, 11., p))
 }
