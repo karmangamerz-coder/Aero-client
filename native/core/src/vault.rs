@@ -251,4 +251,48 @@ mod tests {
         assert!(restore(Metadata::from(&accounts), &vault).is_err());
         assert!(!format!("{account:?}").contains("refresh"));
     }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn windows_credential_manager_roundtrip_and_removal() {
+        let root = tempfile::tempdir().unwrap();
+        let mut accounts = Accounts::default();
+        let account = crate::auth::test_account("11111111222233334444555555555555", "Player");
+        accounts.upsert(account.clone());
+        struct Cleanup {
+            root: std::path::PathBuf,
+            id: String,
+        }
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                if let Ok(vault) = OsVault::new(&self.root) {
+                    let _ = vault.delete(&self.id);
+                }
+            }
+        }
+        let _cleanup = Cleanup {
+            root: root.path().to_owned(),
+            id: account.uuid.clone(),
+        };
+        save(root.path(), &accounts).await.unwrap();
+        let disk = fs::read_to_string(root.path().join(METADATA))
+            .await
+            .unwrap();
+        assert!(!disk.contains("refresh"));
+        let restored = load(root.path()).await.unwrap();
+        assert_eq!(
+            restored.accounts[0].ms.refresh_token,
+            account.ms.refresh_token
+        );
+        assert!(!restored.accounts[0].is_active_token());
+        accounts.remove(&account.uuid);
+        save(root.path(), &accounts).await.unwrap();
+        assert!(load(root.path()).await.unwrap().accounts.is_empty());
+        assert!(
+            OsVault::new(root.path())
+                .unwrap()
+                .get(&account.uuid)
+                .is_err()
+        );
+    }
 }

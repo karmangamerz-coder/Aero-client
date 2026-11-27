@@ -485,6 +485,11 @@ fn account_selection_and_removal_are_consistent() {
 fn skin_composition_produces_a_valid_png() {
     use crate::skin::{Skin, encode_png, model};
     let texture = Skin::fallback();
+    let avatar = crate::skin::head(&texture);
+    let reader = png::Decoder::new(std::io::Cursor::new(avatar))
+        .read_info()
+        .unwrap();
+    assert_eq!((reader.info().width, reader.info().height), (32, 32));
     let composed = model(&texture);
     assert_eq!(&composed[..8], b"\x89PNG\r\n\x1a\n");
     assert!(composed.len() > 1000);
