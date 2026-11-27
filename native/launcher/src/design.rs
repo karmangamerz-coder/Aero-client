@@ -66,10 +66,10 @@ pub fn palette(name: &str) -> Palette {
         "Aero Lite" => Palette {
             dark: false,
             photo: false,
-            bg: Color::from_rgb(243, 246, 248),
+            bg: Color::from_rgb(235, 236, 238),
             glass: Color::from_rgb(255, 255, 255),
-            glass_soft: Color::from_rgb(250, 252, 253),
-            rail: Color::from_rgb(248, 250, 251),
+            glass_soft: Color::from_rgb(224, 226, 229),
+            rail: Color::from_rgb(238, 239, 241),
             surface: Color::from_rgb(255, 255, 255),
             surface_alt: Color::from_rgb(236, 241, 244),
             text: Color::from_rgb(29, 41, 50),

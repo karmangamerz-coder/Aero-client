@@ -73,14 +73,10 @@ fn parse_loader(value: &str) -> Loader {
 // --------------------------------------------------------------------- play
 
 pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
-    let p = if p.photo {
-        Palette {
-            art_text: Color::WHITE,
-            art_dim: Color::from_rgb(219, 235, 245),
-            ..p
-        }
-    } else {
-        p
+    let p = Palette {
+        art_text: Color::WHITE,
+        art_dim: Color::from_rgb(219, 235, 245),
+        ..p
     };
     let compact = ui.window_height < 720.;
     // Reserve the silver frame, selectors and authentication notice before
@@ -255,10 +251,10 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
             rect()
                 .expanded()
                 .corner_radius(14.)
-                .background(if p.photo {
-                    Color::from_rgb(82, 119, 146)
+                .background(if p.dark {
+                    Color::from_rgb(46, 68, 90)
                 } else {
-                    p.glass
+                    Color::from_rgb(82, 119, 146)
                 })
                 .border(rim(p))
                 .padding(if compact {
