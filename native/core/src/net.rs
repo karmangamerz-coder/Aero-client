@@ -72,9 +72,7 @@ impl DownloadClient {
                 .redirect(reqwest::redirect::Policy::none())
                 .connect_timeout(Duration::from_secs(20))
                 .read_timeout(Duration::from_secs(30))
-                .user_agent(
-                    "AeroClient/1.0.0-beta.1 (+https://github.com/karmangamerz-coder/Aero-client)",
-                )
+                .user_agent("AeroClient/2.0.0 (+https://github.com/karmangamerz-coder/Aero-client)")
                 .build()?,
             test_origin: None,
             report,
@@ -157,6 +155,20 @@ impl DownloadClient {
         for attempt in 0..3 {
             let result = async {
                 let response = self.response(url, 0, cancel).await?;
+                if response.status() == StatusCode::TOO_MANY_REQUESTS {
+                    let retry_after = response
+                        .headers()
+                        .get("Retry-After")
+                        .and_then(|value| value.to_str().ok())
+                        .and_then(|value| value.parse::<u64>().ok())
+                        .unwrap_or(2)
+                        .clamp(1, 30);
+                    tokio::select! {
+                        _ = cancel.cancelled() => bail!("Cancelled"),
+                        _ = tokio::time::sleep(Duration::from_secs(retry_after)) => {}
+                    }
+                    bail!("Service rate limit reached; waited {retry_after}s before retrying")
+                }
                 ensure!(response.status() == StatusCode::OK, "Metadata HTTP {} from {url}", response.status());
                 let mut stream = response.bytes_stream(); let mut output = Vec::new();
                 loop {

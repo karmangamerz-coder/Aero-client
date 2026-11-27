@@ -5,6 +5,7 @@ pub mod hardware;
 pub mod install;
 pub mod launch;
 pub mod net;
+mod oauth_pkce;
 pub mod onboarding;
 pub mod performance;
 pub mod runtime;
@@ -13,6 +14,7 @@ pub mod storage;
 #[cfg(test)]
 mod tests;
 pub mod update;
+mod vault;
 pub use auth::{Account, Accounts};
 pub use hardware::{Hardware, Performance};
 pub use install::Installer;

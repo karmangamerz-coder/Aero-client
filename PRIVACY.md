@@ -1,31 +1,35 @@
 # Privacy
 
-No Aero accounts, telemetry, analytics, advertising, tracking IDs or crash uploading.
-M2 implements no authentication and stores no access/refresh tokens. Startup reads local
-settings/instance manifests only; it does not refresh metadata or start downloads.
+Aero has no accounts of its own, telemetry, analytics, advertising, tracking IDs or automatic
+crash uploads. Startup reads local settings, instance manifests, cached skins and account
+metadata; it does not poll news or refresh remote metadata.
 
-When you click Refresh, Install, Retry or Repair, Aero connects over HTTPS to the
-following services as needed. They receive your IP address, requested version/artifact
-paths and the AeroClient/1.0.0-beta.1 user agent under their own policies:
+When you explicitly sign in, the system browser connects to Microsoft. Aero uses HTTPS
+with login.microsoftonline.com, user.auth.xboxlive.com, xsts.auth.xboxlive.com and
+api.minecraftservices.com to obtain your session, verify Java ownership and fetch the
+Minecraft profile. Public skin textures may be fetched from textures.minecraft.net.
+Those services receive your network address and information necessary for the request.
+A short-lived callback listener binds IPv4 loopback only; the browser returns to
+http://localhost:<port>/callback. Callback codes, state and PKCE verifiers stay in memory.
 
-- Mojang/Minecraft: piston-meta.mojang.com, piston-data.mojang.com,
-  launchermeta.mojang.com, launcher.mojang.com, libraries.minecraft.net,
-  resources.download.minecraft.net.
-- Fabric (if selected): meta.fabricmc.net, maven.fabricmc.net.
-- Forge (if selected): maven.minecraftforge.net, files.minecraftforge.net.
-- Maven Central (allowlisted dependency source): repo.maven.apache.org.
+Refresh tokens live in the operating system credential vault: Windows Credential Manager,
+macOS Keychain or Linux Secret Service. The account metadata file contains username, UUID,
+skin URL, Application ID and active-account selection, with no session secrets. Access
+tokens remain in memory. The vault service is scoped to the data directory, so isolated
+developer runs do not share normal accounts. Vault errors never trigger plaintext storage.
+Sessions refresh on demand before launching, not through background polling.
 
-Local storage: `~/.aero-client/settings.properties` holds theme/memory preferences;
-`custom-java.txt` holds an optional executable path. `data/` holds cached metadata,
-downloaded files/partial files, Java runtimes and UUID instances with installation status.
-These records are not uploaded. No automatic retention/deletion runs. Remove unneeded
-instances or caches manually only while Aero is closed; protect your saves first.
+Sign out cancels pending sign-in and deletes the active account's local vault credential.
+Remove account deletes the chosen saved account. Browser sign-in cookies and sessions on
+other devices are unaffected. Old DPAPI account files require a new sign-in and are removed
+after a successful vault save. Logs use fixed auth errors and redact known session tokens.
 
-Only an explicitly selected or detected local Java executable is probed for its version.
-Managed Java files are checksum-verified before execution. Runtime probe output is a
-temporary local file removed after the probe. No game process is launched in M2.
+Requested downloads use Mojang/Minecraft, Fabric, Forge, Maven Central and Modrinth services.
+Requested update checks use GitHub. Services receive your IP address, request path and an
+AeroClient/2.0.0 user agent. No Minecraft files are redistributed by Aero.
+Local game files, Java runtimes, preferences, caches and instance saves remain under the
+configured data directory. Back up saves before manually removing an instance or directory.
 
-Developer builds contact Gradle/Maven Central; GitHub receives source/PR/CI information
-voluntarily submitted there. M3 must document Microsoft endpoints, token storage,
-refresh/logout and deletion before auth is implemented. Never put tokens in settings,
-repository files, logs or diagnostics. Future diagnostics require explicit revocable consent.
+Developer builds contact Cargo, Gradle and Maven registries. GitHub receives source, PR and
+CI data submitted there. Credentials, signing keys and tokens must never be committed.
+

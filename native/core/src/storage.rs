@@ -402,6 +402,9 @@ pub struct Settings {
     pub custom_java: String,
     pub low_performance: bool,
     pub reduced_motion: bool,
+    /// Public Azure application identifier used for Microsoft device-code sign-in.
+    /// This is not a secret, but it must belong to Aero rather than another launcher.
+    pub microsoft_client_id: String,
     /// Performance preset chosen in setup; kept as a string so future presets stay
     /// backwards compatible.
     pub performance: String,
@@ -414,6 +417,7 @@ impl Default for Settings {
             custom_java: String::new(),
             low_performance: false,
             reduced_motion: true,
+            microsoft_client_id: String::new(),
             performance: "Balanced".into(),
         }
     }
@@ -427,6 +431,11 @@ impl Settings {
         ensure!(
             ["Aero Light", "Aero Dark", "Aero Lite"].contains(&self.appearance.as_str()),
             "Unknown appearance preset"
+        );
+        ensure!(
+            self.microsoft_client_id.is_empty()
+                || uuid::Uuid::parse_str(self.microsoft_client_id.trim()).is_ok(),
+            "Microsoft client ID must be an Azure application GUID"
         );
         Ok(())
     }

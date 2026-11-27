@@ -73,6 +73,14 @@ fn parse_loader(value: &str) -> Loader {
 // --------------------------------------------------------------------- play
 
 pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
+    let compact = ui.window_height < 720.;
+    let (character_width, character_height) = if compact {
+        (155., 254.)
+    } else if ui.window_height < 900. {
+        (190., 311.)
+    } else {
+        (225., 369.)
+    };
     let instance = chosen(s).cloned();
     let account = s.accounts.active_account().cloned();
     let page = ui.page;
@@ -81,8 +89,12 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
         .as_ref()
         .map(|a| a.name.clone())
         .unwrap_or_else(|| "Not signed in".to_owned());
-    let status = if account.is_some() {
+    let status = if s.authenticating {
+        "Signing in…"
+    } else if account.as_ref().is_some_and(|a| a.is_active_token()) {
         "Online"
+    } else if account.is_some() {
+        "Session refreshes when you play"
     } else {
         "Signed out"
     };
@@ -96,7 +108,9 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     let installing = s.busy && percent > 0.;
 
     let ready = instance.as_ref().is_some_and(|i| i.status == "READY");
-    let launch_action: Element = if s.launching {
+    let launch_action: Element = if s.authenticating {
+        launch_button(p, "Waiting for Microsoft…", false).into_element()
+    } else if s.launching {
         rect()
             .width(Size::px(270.))
             .height(Size::px(54.))
@@ -109,7 +123,7 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     } else if installing {
         launch_progress(p, percent, "Installing").into_element()
     } else if account.is_none() {
-        launch_button(p, "Sign in to play", true)
+        launch_button(p, "Sign in with Microsoft", true)
             .on_press({
                 let backend = b.clone();
                 move |_| backend.send(Command::SignIn)
@@ -200,7 +214,12 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
 
     let selectors = rect()
         .horizontal()
+        .padding((5., 6.))
         .spacing(8.)
+        .corner_radius(9.)
+        .background(p.glass)
+        .border(Border::new().width(1.).fill(p.border_soft))
+        .maybe(p.photo, |r| r.backdrop_blur(8.))
         .child(
             rect().width(Size::px(186.)).height(Size::px(38.)).child(
                 Select::new()
@@ -229,7 +248,11 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
         .child(
             rect()
                 .expanded()
-                .padding((18., 26., 26., 18.))
+                .padding(if compact {
+                    (10., 18., 12., 18.)
+                } else {
+                    (16., 24., 20., 24.)
+                })
                 .content(Content::Flex)
                 .cross_align(Alignment::Center)
                 .spacing(4.)
@@ -258,7 +281,14 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         )
                         .child(art_dim(status, 11.5, p)),
                 )
-                .child(rect().expanded().center().child(character(&s.skin)))
+                .child(
+                    rect()
+                        .width(Size::fill())
+                        .height(Size::flex(1.))
+                        .center()
+                        .overflow(Overflow::Clip)
+                        .child(character(&s.skin, character_width, character_height)),
+                )
                 .child(selectors)
                 .child(rect().horizontal().spacing(10.).child(launch_action).child(
                     TooltipContainer::new(Tooltip::new_text("Instance settings")).child(
@@ -279,8 +309,10 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         }),
                     ),
                 ))
-                .child(rect().height(Size::px(4.)).child(art_dim(
-                    if s.launching {
+                .child(rect().height(Size::px(18.)).center().child(art_dim(
+                    if !s.signin_state.is_empty() {
+                        s.signin_state.as_str()
+                    } else if s.launching {
                         "Live logs are on the Downloads page."
                     } else if instance.is_some() && !ready {
                         "Official files are downloaded, verified and repairable."
@@ -395,6 +427,7 @@ pub fn instances(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     .horizontal()
                     .width(Size::fill())
                     .spacing(12.)
+                    .content(Content::Flex)
                     .cross_align(Alignment::Center)
                     .child(
                         rect()
@@ -637,6 +670,7 @@ pub fn instance_detail(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Elemen
                         .child(action("Back", p).on_press(move |_| detail.set(String::new())))
                         .child(strong(instance.name.clone(), 20., p.text))
                         .child(status_chip(&instance.status, p))
+                        .content(Content::Flex)
                         .child(rect().width(Size::flex(1.)))
                         .child(ghost("Downloads", p).on_press(move |_| page.set(3))),
                 )
@@ -644,6 +678,7 @@ pub fn instance_detail(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Elemen
                     rect()
                         .horizontal()
                         .spacing(12.)
+                        .content(Content::Flex)
                         .children([installation, advanced]),
                 )
                 .maybe(plan.is_some(), |r| match plan {
@@ -679,8 +714,16 @@ fn launch_button_small(p: Palette, label: &str, enabled: bool) -> Button {
 pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     let query = ui.query;
     let mut kind = ui.kind;
+    let mut version = ui.mod_version;
+    let mut loader = ui.mod_loader;
+    let mut category = ui.mod_category;
+    let mut sort = ui.mod_sort;
     let backend = b.clone();
     let current_kind = kind.read().clone();
+    let current_version = version.read().clone();
+    let current_loader = loader.read().clone();
+    let current_category = category.read().clone();
+    let current_sort = sort.read().clone();
     let selected = s.selected.clone();
     let results: Vec<Rect> = s
         .results
@@ -689,24 +732,152 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
             let backend = b.clone();
             let instance = selected.clone();
             let project = item.slug.clone();
+            let project_for_detail = project.clone();
             card(p)
                 .width(Size::fill())
-                .child(strong(item.title.clone(), 13.5, p.text))
+                .child(
+                    rect()
+                        .horizontal()
+                        .width(Size::fill())
+                        .cross_align(Alignment::Center)
+                        .content(Content::Flex)
+                        .child(strong(item.title.clone(), 13.5, p.text))
+                        .child(rect().width(Size::flex(1.)))
+                        .child(chip(item.project_type.clone(), p, false)),
+                )
                 .child(dim(item.description.clone(), 11., p))
                 .child(dim(
-                    format!("{} · {}", item.project_type, item.slug),
+                    format!(
+                        "By {} · {} downloads · {}",
+                        if item.author.is_empty() {
+                            "Unknown"
+                        } else {
+                            &item.author
+                        },
+                        item.downloads,
+                        item.categories
+                            .iter()
+                            .take(4)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
                     10.,
                     p,
                 ))
                 .child(
-                    action("Install", p)
-                        .enabled(!s.busy && !instance.is_empty() && item.project_type != "modpack")
-                        .on_press(move |_| {
-                            backend.send(Command::InstallContent(instance.clone(), project.clone()))
-                        }),
+                    rect()
+                        .horizontal()
+                        .spacing(8.)
+                        .child(action("Details", p).enabled(!s.busy).on_press({
+                            let backend = backend.clone();
+                            let version = current_version.clone();
+                            let loader = current_loader.clone();
+                            move |_| {
+                                backend.send(Command::LoadProject(
+                                    project_for_detail.clone(),
+                                    version.clone(),
+                                    loader.clone(),
+                                ))
+                            }
+                        }))
+                        .child(
+                            action("Install", p)
+                                .enabled(
+                                    !s.busy
+                                        && !instance.is_empty()
+                                        && item.project_type != "modpack",
+                                )
+                                .on_press(move |_| {
+                                    backend.send(Command::InstallContent(
+                                        instance.clone(),
+                                        project.clone(),
+                                    ))
+                                }),
+                        ),
                 )
         })
         .collect();
+
+    let installed: Vec<Rect> = s
+        .installed_content
+        .iter()
+        .map(|item| {
+            let enabled = item.enabled;
+            let toggle = b.clone();
+            let remove = b.clone();
+            let instance_for_toggle = selected.clone();
+            let instance_for_remove = selected.clone();
+            let project_for_toggle = item.project_id.clone();
+            let project_for_remove = item.project_id.clone();
+            card(p)
+                .width(Size::fill())
+                .child(
+                    rect()
+                        .horizontal()
+                        .width(Size::fill())
+                        .spacing(8.)
+                        .cross_align(Alignment::Center)
+                        .content(Content::Flex)
+                        .child(strong(item.title.clone(), 12.5, p.text))
+                        .child(chip(
+                            if item.enabled { "Enabled" } else { "Disabled" },
+                            p,
+                            item.enabled,
+                        ))
+                        .maybe(item.dependency, |r| {
+                            r.child(chip("Required dependency", p, false))
+                        })
+                        .child(rect().width(Size::flex(1.)))
+                        .child(
+                            action(if item.enabled { "Disable" } else { "Enable" }, p)
+                                .enabled(!s.busy)
+                                .on_press(move |_| {
+                                    toggle.send(Command::ToggleContent(
+                                        instance_for_toggle.clone(),
+                                        project_for_toggle.clone(),
+                                        !enabled,
+                                    ))
+                                }),
+                        )
+                        .child(danger("Remove", p).enabled(!s.busy).on_press(move |_| {
+                            remove.send(Command::RemoveContent(
+                                instance_for_remove.clone(),
+                                project_for_remove.clone(),
+                            ))
+                        })),
+                )
+                .child(dim(item.file.clone(), 10., p))
+        })
+        .collect();
+
+    let detail = s.project_detail.as_ref().map(|detail| {
+        let summary: String = detail.body.chars().take(700).collect();
+        panel(p)
+            .width(Size::fill())
+            .child(section(p, &detail.title, &detail.description))
+            .child(dim(
+                format!(
+                    "{} downloads · {} followers · {}",
+                    detail.downloads,
+                    detail.followers,
+                    detail.categories.join(", ")
+                ),
+                10.5,
+                p,
+            ))
+            .child(text(summary, 11., p.text))
+            .child(dim(
+                if detail.versions.is_empty() {
+                    "No matching versions for the selected filters.".into()
+                } else {
+                    format!("Matching releases: {}", detail.versions.join(", "))
+                },
+                10.5,
+                p,
+            ))
+    });
+
     scroll()
         .child(
             body()
@@ -716,8 +887,26 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     "Search Modrinth and install verified compatible mods, resource packs and shaders into the selected instance.",
                 ))
                 .child(
-                    rect().horizontal().spacing(8.).cross_align(Alignment::Center)
-                        .child(rect().width(Size::px(320.)).child(Input::new(query).placeholder("Search Modrinth")))
+                    rect().horizontal().width(Size::fill()).spacing(8.).content(Content::Flex).cross_align(Alignment::Center)
+                        .child(rect().width(Size::flex(1.)).child(Input::new(query).expanded().placeholder("Search Modrinth")))
+                        .child(rect().width(Size::px(100.)).child(
+                            action("Search", p).enabled(!s.busy).on_press({
+                                let backend = backend.clone();
+                                move |_| {
+                                    backend.send(Command::Discover(
+                                        query.read().clone(),
+                                        kind.read().clone(),
+                                        version.read().clone(),
+                                        loader.read().clone(),
+                                        category.read().clone(),
+                                        sort.read().clone(),
+                                    ))
+                                }
+                            }),
+                        )),
+                )
+                .child(
+                    rect().horizontal().width(Size::fill()).spacing(8.)
                         .child(rect().width(Size::px(130.)).child(
                             Select::new().selected_item(current_kind.clone()).children(
                                 ["mod", "modpack", "resourcepack", "shader"].into_iter().map(|value| {
@@ -729,20 +918,50 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 }),
                             ),
                         ))
-                        .child(action("Search", p).enabled(!s.busy).on_press({
-                            let backend = backend.clone();
-                            move |_| {
-                                backend.send(Command::Discover(
-                                    query.read().clone(),
-                                    kind.read().clone(),
-                                    String::new(),
-                                    String::new(),
-                                ))
-                            }
-                        })),
+                        .child(rect().width(Size::px(135.)).child(
+                            Select::new().selected_item(if current_version.is_empty() { "All versions".into() } else { current_version.clone() }).children(
+                                std::iter::once("").chain(TARGETS).map(|value| {
+                                    let picked = value.to_owned();
+                                    MenuItem::new().selected(current_version == value).on_press(move |_| version.set(picked.clone())).child(if value.is_empty() { "All versions".into() } else { value.to_owned() })
+                                }),
+                            ),
+                        ))
+                        .child(rect().width(Size::px(130.)).child(
+                            Select::new().selected_item(if current_loader.is_empty() { "All loaders".into() } else { current_loader.clone() }).children(
+                                ["", "fabric", "forge", "neoforge", "quilt"].into_iter().map(|value| {
+                                    let picked = value.to_owned();
+                                    MenuItem::new().selected(current_loader == value).on_press(move |_| loader.set(picked.clone())).child(if value.is_empty() { "All loaders".into() } else { value.to_owned() })
+                                }),
+                            ),
+                        ))
+                        .child(rect().width(Size::px(160.)).child(
+                            Select::new().selected_item(if current_category.is_empty() { "All categories".into() } else { current_category.clone() }).children(
+                                ["", "optimization", "technology", "adventure", "decoration", "utility", "magic"].into_iter().map(|value| {
+                                    let picked = value.to_owned();
+                                    MenuItem::new().selected(current_category == value).on_press(move |_| category.set(picked.clone())).child(if value.is_empty() { "All categories".into() } else { value.to_owned() })
+                                }),
+                            ),
+                        ))
+                        .child(rect().width(Size::px(145.)).child(
+                            Select::new().selected_item(current_sort.clone()).children(
+                                ["relevance", "downloads", "follows", "newest", "updated"].into_iter().map(|value| {
+                                    let picked = value.to_owned();
+                                    MenuItem::new().selected(current_sort == value).on_press(move |_| sort.set(picked.clone())).child(value.to_owned())
+                                }),
+                            ),
+                        )),
                 )
+                .maybe(detail.is_some(), |r| r.child(detail.unwrap()))
+                .child(strong("Search results", 14., p.text))
                 .child(rect().width(Size::fill()).spacing(8.).children(results))
-                .maybe(s.results.is_empty(), |r| r.child(hint(p, "Search results will appear here."))),
+                .maybe(s.results.is_empty(), |r| {
+                    r.child(hint(p, if s.busy { "Loading Modrinth…" } else { "Search results will appear here." }))
+                })
+                .child(strong("Installed content", 14., p.text))
+                .child(rect().width(Size::fill()).spacing(8.).children(installed))
+                .maybe(s.installed_content.is_empty(), |r| {
+                    r.child(hint(p, if selected.is_empty() { "Create or select an instance before installing content." } else { "No Modrinth content is installed in this instance." }))
+                }),
         )
         .into_element()
 }
@@ -836,6 +1055,7 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     let mut appearance = ui.appearance;
     let memory = ui.memory;
     let java = ui.java;
+    let microsoft_client_id = ui.microsoft_client_id;
     let low = ui.low;
     let reduced = ui.reduced;
     let current = appearance.read().clone();
@@ -846,9 +1066,16 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
             .map(|name| {
                 let label = name.to_owned();
                 let picked = label.clone();
+                let backend = b.clone();
+                let base = s.settings.clone();
                 action(label, p)
                     .enabled(current != name)
-                    .on_press(move |_| appearance.set(picked.clone()))
+                    .on_press(move |_| {
+                        appearance.set(picked.clone());
+                        let mut settings = base.clone();
+                        settings.appearance = picked.clone();
+                        backend.send(Command::Save(settings));
+                    })
             }),
     );
 
@@ -869,6 +1096,7 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .horizontal()
                 .width(Size::fill())
                 .spacing(10.)
+                .content(Content::Flex)
                 .cross_align(Alignment::Center)
                 .child(strong(account.name.clone(), 12.5, p.text))
                 .child(dim(
@@ -902,11 +1130,15 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     panel(p).width(Size::fill())
                         .child(strong("Performance", 14., p.text))
                         .child(
-                            rect().horizontal().spacing(8.).cross_align(Alignment::Center)
-                                .child(dim("Game memory (MiB)", 11.5, p))
-                                .child(rect().width(Size::px(110.)).child(Input::new(memory).placeholder("4096")))
-                                .child(dim("Custom Java", 11.5, p))
-                                .child(rect().width(Size::px(300.)).child(Input::new(java).placeholder("Managed automatically"))),
+                            rect().horizontal().width(Size::fill()).spacing(12.).content(Content::Flex).cross_align(Alignment::Center)
+                                .child(rect().width(Size::px(170.)).child(dim("Game memory (MiB)", 11.5, p)))
+                                .child(rect().width(Size::px(150.)).child(Input::new(memory).placeholder("4096")))
+                                .child(dim("Recommended values never exceed 60% of detected RAM.", 10.5, p)),
+                        )
+                        .child(
+                            rect().horizontal().width(Size::fill()).spacing(12.).content(Content::Flex).cross_align(Alignment::Center)
+                                .child(rect().width(Size::px(170.)).child(dim("Custom Java executable", 11.5, p)))
+                                .child(rect().width(Size::flex(1.)).child(Input::new(java).expanded().placeholder("Managed automatically"))),
                         )
                         .child(
                             rect().horizontal().spacing(16.).cross_align(Alignment::Center)
@@ -915,7 +1147,7 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 .child(dim("Reduce motion", 11.5, p))
                                 .child(Switch::new(reduced)),
                         )
-                        .child(hardware_text.clone())
+                        .child(dim(hardware_text.clone(), 10.5, p))
                         .child(action("Save preferences", p).enabled(!s.busy).on_press({
                             let save = save.clone();
                             let base = s.settings.clone();
@@ -924,6 +1156,8 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 settings.appearance = appearance.read().clone();
                                 settings.memory_mib = memory_value.clamp(1024, 32768);
                                 settings.custom_java = java.read().clone();
+                                settings.microsoft_client_id =
+                                    microsoft_client_id.read().trim().to_owned();
                                 settings.low_performance = *low.read();
                                 settings.reduced_motion = *reduced.read();
                                 save.send(Command::Save(settings.clone()));
@@ -933,16 +1167,37 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .child(
                     panel(p).width(Size::fill())
                         .child(strong("Accounts", 14., p.text))
+                        .child(
+                            rect().horizontal().width(Size::fill()).spacing(12.).content(Content::Flex).cross_align(Alignment::Center)
+                                .child(rect().width(Size::px(170.)).child(dim("Microsoft client ID", 11.5, p)))
+                                .child(rect().width(Size::flex(1.)).child(
+                                    Input::new(microsoft_client_id)
+                                        .expanded()
+                                        .placeholder("Required Azure public-client application GUID"),
+                                )),
+                        )
+                        .child(dim(
+                            "This public application ID is required for secure browser sign-in with PKCE. It is not a password or secret.",
+                            10.5,
+                            p,
+                        ))
                         .child(rect().width(Size::fill()).spacing(6.).children(accounts))
                         .child(rect().horizontal().spacing(8.)
-                            .child(action("Add account", p).on_press({
+                            .child(action("Sign in with Microsoft", p).enabled(!s.authenticating).on_press({
                                 let backend = b.clone();
                                 move |_| backend.send(Command::SignIn)
                             }))
                             .child(action("Sign out", p).on_press({
                                 let backend = b.clone();
                                 move |_| backend.send(Command::SignOut)
-                            }))),
+                            })))
+                        .maybe(s.authenticating, |r| {
+                            let backend = b.clone();
+                            r.child(action("Cancel sign-in", p).on_press(move |_| backend.send(Command::CancelSignIn)))
+                        })
+                        .maybe(!s.signin_state.is_empty(), |r| {
+                            r.child(hint(p, s.signin_state.clone()))
+                        }),
                 )
                 .child(
                     panel(p).width(Size::fill())
@@ -1119,7 +1374,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     11.5,
                     p,
                 ))
-                .child(action("Sign in with Microsoft", p).on_press({
+                .child(action("Sign in with Microsoft", p).enabled(!s.authenticating).on_press({
                     let backend = backend.clone();
                     move |_| backend.send(Command::SignIn)
                 }))
@@ -1371,22 +1626,6 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 ));
             }
         }));
-    } else {
-        nav = nav.child(rect().width(Size::px(60.)));
-    }
-    nav = nav.child(rect().width(Size::flex(1.)));
-    if step == 1 {
-        nav = nav.child(ghost("Skip for now", p).enabled(!s.busy).on_press({
-            let backend = backend.clone();
-            let answers = base.clone();
-            move |_| {
-                backend.send(Command::NavigateSetup(
-                    onboarding::Direction::Skip,
-                    step,
-                    answers.clone(),
-                ));
-            }
-        }));
     }
     if step < 6 {
         nav = nav.child(
@@ -1425,7 +1664,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
             if step == onboarding::LAST_STEP {
                 "Open the launcher"
             } else {
-                "Set up later"
+                "Skip setup"
             },
             p,
         )
@@ -1444,19 +1683,27 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     );
     let _ = w_auto;
 
+    let wizard_width = (ui.window_width - 40.).clamp(620., 760.);
+    // A flexible ScrollView keeps its content's intrinsic height in Freya and can
+    // push the navigation row below a short window. Reserve the header, footer,
+    // panel padding and gaps explicitly; long steps scroll inside this viewport.
+    let wizard_body_height = (ui.window_height - 210.).clamp(300., 780.);
     rect()
         .expanded()
+        .padding((16., 20.))
         .center()
         .child(
             panel(p)
-                .width(Size::px(640.))
-                .padding((22., 24.))
+                .width(Size::px(wizard_width))
+                .height(Size::fill())
+                .padding((18., 22.))
                 .spacing(12.)
                 .child(
                     rect()
                         .horizontal()
                         .width(Size::fill())
                         .cross_align(Alignment::Center)
+                        .content(Content::Flex)
                         .child(strong(
                             format!("Setup · step {} of {}", step + 1, onboarding::STEPS),
                             11.5,
@@ -1465,7 +1712,12 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .child(rect().width(Size::flex(1.)))
                         .child(step_dots(step, p)),
                 )
-                .child(content)
+                .child(
+                    ScrollView::new()
+                        .width(Size::fill())
+                        .height(Size::px(wizard_body_height))
+                        .child(content),
+                )
                 .maybe(!s.message.is_empty() && s.message != "Ready.", |r| {
                     r.child(dim(s.message.clone(), 10.5, p))
                 })

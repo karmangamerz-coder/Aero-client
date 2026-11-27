@@ -51,7 +51,16 @@ compatibility, source and notice review. GitHub Actions are not application depe
 | PNG (`png`) | 0.17 | MIT/Apache-2.0; decodes Minecraft skin textures. |
 | sysinfo | 0.33 | MIT; read-only CPU/memory/disk/OS detection for setup. |
 | zip, sha1, hex, uuid, fs2, futures-util, regex, bytes, anyhow | as locked | Permissive licenses; downloads, integrity and hashing. |
-| windows-sys | 0.61 | MIT/Apache-2.0; DPAPI token sealing and file-system calls on Windows. |
+| windows-sys | 0.61 | MIT/Apache-2.0; Windows file-system calls; credential access through keyring. |
+| oauth2 | 5.0.0 | MIT/Apache-2.0; PKCE, OAuth code exchange and refresh (https://github.com/ramosbugs/oauth2-rs). |
+| minecraft-msa-auth | 0.5.0 | MIT/Apache-2.0; Xbox/XSTS/Minecraft exchange (https://github.com/minecraft-rs/minecraft-msa-auth). |
+| keyring | 3.6.3 | MIT/Apache-2.0; native OS credential vault (https://github.com/hwchen/keyring-rs). |
+| webbrowser | 1.2.7 | MIT/Apache-2.0; open system browser without shell string construction (https://github.com/amodm/webbrowser-rs). |
+| subtle | 2.6.1 | BSD-3-Clause; constant-time state digest comparison (https://github.com/dalek-cryptography/subtle). |
+
+License texts for the new authentication components are retained under third-party/auth and
+included by the portable/installer packaging. Locked transitive dependencies are listed in
+the generated dependencies.json inventory.
 
 Rust dependency licenses are audited in CI and must be re-reviewed with cargo-deny or
 cargo-license before a stable binary release. Their notices ship with the installer. Only official

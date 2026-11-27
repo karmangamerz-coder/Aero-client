@@ -344,6 +344,27 @@ pub fn model(skin: &Skin) -> Vec<u8> {
     encode_png(canvas.width as u32, canvas.height as u32, &canvas.pixels)
 }
 
+/// Small front-facing avatar, including the skin's hat layer, rendered once.
+pub fn head(skin: &Skin) -> Vec<u8> {
+    let mut pixels = Vec::with_capacity(32 * 32 * 4);
+    for y in 0..32 {
+        for x in 0..32 {
+            let base = skin.at(8 + x / 4, 8 + y / 4);
+            let overlay = skin.at(40 + x / 4, 8 + y / 4);
+            let alpha = u32::from(overlay[3]);
+            for channel in 0..3 {
+                pixels.push(
+                    ((u32::from(overlay[channel]) * alpha
+                        + u32::from(base[channel]) * (255 - alpha))
+                        / 255) as u8,
+                );
+            }
+            pixels.push(255);
+        }
+    }
+    encode_png(32, 32, &pixels)
+}
+
 /// Minimal PNG writer. Uses stored (uncompressed) deflate blocks so the renderer
 /// needs no compression dependency; the composed model is ~150 KB at most.
 pub fn encode_png(width: u32, height: u32, rgba: &[u8]) -> Vec<u8> {

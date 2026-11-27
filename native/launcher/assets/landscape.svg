@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
 <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#70C8F0"/><stop offset="1" stop-color="#E4F8FF"/></linearGradient>
 <linearGradient id="grass" x2="0" y2="1"><stop stop-color="#99D94B"/><stop offset="1" stop-color="#369957"/></linearGradient>
 <linearGradient id="water" x2="0" y2="1"><stop stop-color="#C4F3F4"/><stop offset="1" stop-color="#51AFD3"/></linearGradient>

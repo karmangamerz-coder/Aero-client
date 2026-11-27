@@ -15,11 +15,14 @@ hardware benchmark or signed installer was tested when the project lacks those r
 - [x] Fabric and legacy 1.8.9 Forge profiles without executing remote installer code.
 - [x] Managed compatible Java, integrity, cancellation, retry, repair and isolated instances.
 - [x] Rust/Freya/Skia launcher and Aero Light, Dark and Lite design system.
-- [ ] Complete 100%, 125% and 150% visual QA on Windows.
+- [x] Responsive layout foundation for 1280x720 and 1920x1080, with internal setup scrolling.
+- [ ] Complete 100%, 125% and 150% multi-DPI visual QA on Windows.
 
 ## M3 / M3-S — authentication, launch and setup (implemented)
 
-- [x] Microsoft device code, Xbox, XSTS, ownership, profile, skin and DPAPI account store.
+- [x] Microsoft authorization-code PKCE, Xbox, XSTS, ownership, profile and skin.
+- [x] OS credential-vault refresh storage, cancellation, multiple accounts, switching and logout.
+- [x] Aero-owned configurable public-client identity and automatic expired-token renewal.
 - [x] Verified launch arguments, supervised process, bounded logs and crash discovery.
 - [x] Resumable seven-step setup and safe Setup Later path.
 - [ ] Validate the full chain with an owning account and real 1.8.9/modern game sessions.
@@ -28,6 +31,7 @@ hardware benchmark or signed installer was tested when the project lacks those r
 
 - [x] Create, rename, duplicate, repair and recoverably remove instances.
 - [x] Search mods, modpacks, resource packs and shaders with version/loader facets.
+- [x] Project details, compatible version listing and installed-content management UI.
 - [x] Explicit hash-verified mod/resource-pack/shader install with required dependencies.
 - [x] Per-instance installed-content manifest, reversible enable/disable and removal APIs.
 - [ ] Modrinth modpack import/export, individual update UI and external game directories.

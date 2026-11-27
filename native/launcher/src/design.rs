@@ -191,6 +191,14 @@ pub fn panel(p: Palette) -> Rect {
         .corner_radius(10.)
         .background(p.glass)
         .border(rim(p))
+        .maybe(p.photo, |r| {
+            r.backdrop_blur(10.).shadow(
+                Shadow::new()
+                    .y(5.)
+                    .blur(18.)
+                    .color(Color::from_argb(36, 10, 48, 72)),
+            )
+        })
 }
 
 pub fn card(p: Palette) -> Rect {
@@ -200,6 +208,14 @@ pub fn card(p: Palette) -> Rect {
         .corner_radius(8.)
         .background(p.surface)
         .border(Border::new().width(1.).fill(p.border_soft))
+        .maybe(p.photo, |r| {
+            r.shadow(
+                Shadow::new()
+                    .y(3.)
+                    .blur(10.)
+                    .color(Color::from_argb(24, 10, 48, 72)),
+            )
+        })
 }
 
 pub fn section(p: Palette, title: &str, hint: &str) -> Rect {
@@ -488,6 +504,7 @@ pub fn landscape() -> SvgViewer {
         .width(Size::fill())
         .height(Size::fill())
         .aspect_ratio(AspectRatio::Max)
+        .image_cover(ImageCover::Center)
 }
 
 pub fn logo(size: f32) -> SvgViewer {
@@ -498,9 +515,11 @@ pub fn logo(size: f32) -> SvgViewer {
 
 /// Character preview: a composed PNG of the player's skin (or the Aero fallback).
 /// The image is decoded once by Skia and never re-rendered while idle.
-pub fn character(bytes: &std::sync::Arc<Vec<u8>>) -> ImageViewer {
+pub fn character(bytes: &std::sync::Arc<Vec<u8>>, width: f32, height: f32) -> ImageViewer {
     ImageViewer::new((bytes.len(), Bytes::from(bytes.as_ref().clone())))
-        .width(Size::px(249.))
-        .height(Size::px(408.))
+        .width(Size::px(width))
+        .height(Size::px(height))
+        .aspect_ratio(AspectRatio::Min)
+        .image_cover(ImageCover::Center)
         .a11y_alt("Minecraft character preview")
 }

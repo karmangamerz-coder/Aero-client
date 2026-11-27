@@ -2,9 +2,38 @@
 
 This project uses Semantic Versioning. Dates use ISO 8601.
 
+## 2.0.0 — 2026-11-27
+
+### Added
+- Microsoft authorization-code sign-in with S256 PKCE in the default browser, a single-use
+  loopback callback, state validation, timeout and cancellation.
+- OS credential-vault refresh storage, token-free account metadata, application ID binding,
+  automatic expired-session renewal, multiple accounts, switching and local logout/removal.
+- Minecraft authentication library integration, ownership/profile/skin checks, family and
+  application-approval errors, skin-head display and visible waiting state.
+- Tests for callback security, refresh rotation, metadata secrecy and safe error handling.
+- Microsoft registration/configuration guide and ADR 0012.
+
+### Changed
+- Version aligned to 2.0.0 across Cargo, Gradle, user agent and Windows installer.
+- Older DPAPI account files require sign-in again; instances and saves remain intact.
+- Includes the responsive UI, Modrinth filters and setup fixes from the refinement branch.
+
+### Security
+- No password collection, embedded login, client secret or borrowed app ID.
+- Auth library errors never echo token-bearing response bodies; launch diagnostics redact
+  known secrets and account Debug output omits sessions.
+- Live owning-account sign-in remains unverified until Aero's approved registration is supplied.
+
 ## 1.0.0-beta.1 — 2026-11-24
 
 ### Added
+- Responsive Frutiger Aero launcher surfaces for small and full-HD windows, an always-visible
+  status footer, immediate theme application and a static low-performance Lite mode.
+- Configurable Microsoft public-client identity in Settings and `AERO_MS_CLIENT_ID`, with
+  clear device-code progress and automatic access-token renewal before launch.
+- Modrinth type, version, loader, category and sort filters; project details and compatible
+  versions; installed-content enable, disable and removal controls.
 - Explicit Modrinth installation for compatible mods, resource packs and shaders with
   bounded required-dependency resolution, trusted endpoints, checksum verification,
   per-instance manifests and reversible content management.
@@ -22,9 +51,23 @@ This project uses Semantic Versioning. Dates use ISO 8601.
 - The project version is aligned across Cargo and Gradle at 1.0.0-beta.1.
 
 ### Security
+- Removed the borrowed legacy Minecraft Launcher client ID. Aero sign-in now requires an
+  owner-registered Azure public-client application and never needs a client secret.
+- Modrinth downloads verify SHA-512 when the publisher supplies it, in addition to SHA-1.
 - Content installation refuses incompatible releases and untrusted download hosts, verifies
   the publisher-provided SHA-1 and never silently installs or updates projects.
 - Release credentials, signing identities and Microsoft tokens remain outside the repository.
+
+### Fixed
+- Play, Settings and first-run setup no longer overlap or clip at the supported minimum
+  window size; background artwork no longer captures pointer interaction.
+- Setup reserves a fixed responsive viewport for step content, keeping Next and Skip setup
+  visible at the supported 640px client height while longer steps scroll internally; its
+  navigation uses bounded controls instead of a spacer that could push actions off-screen.
+- The landscape now covers the full root instead of exposing side bands, and Discover keeps
+  its Search control inside the content area at 1280px and the supported minimum width.
+- Sign-in reports missing configuration and browser-opening failures immediately instead of
+  appearing unresponsive, and launcher/panic diagnostics omit token-bearing payloads.
 
 ## 0.4.0 — 2026-11-21
 

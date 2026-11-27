@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
       - name: Install Linux native UI libraries
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev libfreetype6-dev libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libdbus-1-dev
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.100.0 --profile minimal
       - name: Check portable core and launcher
@@ -31,6 +31,7 @@ jobs:
       contents: write
     env:
       CARGO_TERM_COLOR: always
+      AERO_MS_CLIENT_ID: ${{ vars.AERO_MS_CLIENT_ID }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -75,7 +76,7 @@ jobs:
             if ($attempt -lt 3) { Start-Sleep -Seconds (15 * $attempt) }
           }
           if (-not $installed) { throw 'NSIS installation failed after three attempts' }
-          & 'C:\Program Files (x86)\NSIS\makensis.exe' /DVERSION=1.0.0 /DAPP_SOURCE="$((Resolve-Path target/portable).Path)" packaging/windows/AeroClient.nsi
+          & 'C:\Program Files (x86)\NSIS\makensis.exe' /DVERSION=2.0.0 /DAPP_SOURCE="$((Resolve-Path target/portable).Path)" packaging/windows/AeroClient.nsi
       - name: Archive and checksum release files
         shell: pwsh
         run: |
@@ -98,4 +99,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" target/AeroClient-Setup.exe target/AeroClient-Portable.zip target/SHA256SUMS.txt --verify-tag --generate-notes
+        run: gh release create "${{ github.ref_name }}" target/AeroClient-Setup.exe target/AeroClient-Portable.zip target/SHA256SUMS.txt --verify-tag --notes-file docs/RELEASE_NOTES.md

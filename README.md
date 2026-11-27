@@ -10,11 +10,11 @@ affiliated with Mojang or Microsoft. It does not contain Minecraft binaries. Min
 downloaded from official distribution services after the player signs in with a Microsoft
 account that owns Java Edition.
 
-## 1.0.0-beta.1
+## 2.0.0
 
 The primary launcher is native Rust using Freya/Skia, Tokio, Reqwest and Serde. It provides
 the Aero Light, Dark and Lite interface, resumable first-launch setup, official Microsoft
-device-code authentication, encrypted Windows account storage, verified Minecraft and Java
+browser PKCE authentication, OS credential-vault storage, verified Minecraft and Java
 installation, isolated instances, game launching, logs and crash discovery.
 
 The v1 completion branch also includes:
@@ -30,8 +30,8 @@ The v1 completion branch also includes:
 - Windows portable and NSIS installer pipelines, Linux/macOS checks, dependency audits and
   SHA-256 release manifests.
 
-Beta means that source and packaging are ready for community testing, not that unperformed
-live checks are being claimed. Real Microsoft sign-in/game launch, version-specific
+Published artifacts are available for testing; automated checks do not establish successful
+live account sign-in. Real Microsoft sign-in/game launch, version-specific
 Forge/Fabric in-game adapters, Modrinth modpack import, Windows code signing, multi-DPI
 visual QA and benchmark runs still require dedicated validation. See PROJECT_STATE.md.
 
@@ -57,13 +57,84 @@ Set AERO_DATA_DIR to an empty test directory to isolate developer runs. Normal d
 stored under %USERPROFILE%\.aero-client\data on Windows. Never point it at unrelated
 files.
 
+Visual QA can start a deterministic window by setting `AERO_WINDOW_WIDTH` and
+`AERO_WINDOW_HEIGHT`; invalid values fall back to 1180x760 and the supported minimum remains
+1000x640. These variables affect only the initial window dimensions.
+
 ## Privacy and authentication
 
-Microsoft sign-in uses OAuth 2.0 device code in the system browser; Aero never receives a
-password. Xbox Live, XSTS, Minecraft services and entitlement verification are required.
-Tokens are protected with Windows DPAPI and excluded from logs, UI text and crash reports.
-Network access happens for an action the player requested; there is no telemetry or news
-polling. Read PRIVACY.md and SECURITY.md before reporting sensitive issues.
+Microsoft sign-in uses OAuth 2.0 authorization code flow with PKCE (S256) in your default
+browser. Aero never receives a Microsoft password or needs a client secret. Xbox Live,
+XSTS, Minecraft Services, Java ownership and the Minecraft profile are checked before play.
+Microsoft family restrictions remain enforced; Aero cannot change or bypass them.
+
+Refresh tokens are stored in Windows Credential Manager, macOS Keychain or Linux Secret
+Service via `keyring`. Minecraft and Microsoft access tokens stay in memory. The local
+`accounts.json` contains only username, UUID, skin URL, application ID and selection.
+Vault failures are visible; there is no plaintext fallback. Linux needs an unlocked Secret
+Service implementation such as GNOME Keyring or KWallet. Headless Linux CI tests use fake
+vaults rather than your real credentials.
+
+Sessions refresh automatically before launch when expired, including after restarting Aero.
+Multiple accounts can be selected in the top bar. **Sign out** cancels pending login and
+removes the active account's local credential; **Remove** deletes a selected saved account.
+Neither action signs you out of Microsoft's browser cookies or revokes other devices.
+Use your Microsoft account security page if you want to revoke access everywhere.
+
+Upgrading from the DPAPI account-file format requires signing in again. Your game instances
+and saves are retained. The obsolete `accounts.bin` is removed after credentials are saved
+successfully in the vault.
+
+### Microsoft application registration — project owner setup
+
+This is one registration for Aero, not a registration each player should create. You need
+access to an existing Microsoft Entra directory and permission to register apps. A personal
+Microsoft account without a directory cannot register an app from that screen. Azure signup
+may ask for a card; Aero offers no bypass of Microsoft eligibility requirements.
+
+1. Open [Microsoft Entra App registrations](https://entra.microsoft.com/) and select
+   **App registrations → New registration**. Name it **Aero Client**.
+2. Choose an audience supporting **personal Microsoft accounts** (personal accounts only,
+   or organizational and personal accounts). Minecraft sign-in uses the consumers authority.
+3. Under **Authentication**, add the **Mobile and desktop applications** platform with
+   redirect URI `http://localhost/callback`. Aero binds an available IPv4 loopback port
+   before opening the browser and uses `http://localhost:<port>/callback` for that attempt.
+   Microsoft ignores the port when matching localhost desktop redirects. Do not register
+   a Web/SPA redirect, enable implicit grants, add wildcard redirects or create a secret.
+4. Copy the **Application (client) ID**, not the directory ID or object ID. Set it in
+   **Settings → Microsoft client ID**, save preferences, then press **Sign in with Microsoft**.
+   Developers may set `AERO_MS_CLIENT_ID` at runtime. Release maintainers can set the GitHub
+   repository Actions variable `AERO_MS_CLIENT_ID`; native release builds embed that public
+   ID so players do not need to configure it. Runtime configuration takes precedence.
+5. Obtain any required Xbox/Minecraft API authorization for this application through
+   Microsoft's official developer process. Creating an Entra registration alone does not
+   guarantee Minecraft Services access. Aero displays an application-approval error for
+   rejection; it never substitutes another launcher's client ID.
+6. Test an owning account, an expired session, cancellation, account switching and local
+   logout. A family-restricted account must be resolved by the family organizer through
+   Microsoft's official settings. Complete password entry and consent only on Microsoft.
+
+Official references: [register an app](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app),
+[desktop app configuration](https://learn.microsoft.com/en-us/entra/identity-platform/scenario-desktop-app-registration),
+[redirect URI rules](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url),
+[authorization code and PKCE](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
+### Authentication troubleshooting
+
+| Message | Next step |
+| --- | --- |
+| Missing/invalid client ID | Configure Aero's registered Application ID; save and retry. |
+| Application rejected / HTTP 403 | Check registration and Minecraft API approval with Microsoft. |
+| Session expired or revoked | Sign in again; no cached session bypass is offered. |
+| No Java ownership | Use the Microsoft account that owns Java Edition. |
+| Xbox profile or family restriction | Complete the official Xbox profile/family steps. |
+| Vault unavailable or locked | Unlock the OS credential store; Linux requires Secret Service. |
+| Browser failed / timeout | Check the default browser, retry, and finish within five minutes. |
+| Redirect mismatch | Register the exact desktop localhost callback above. |
+
+Tokens, callback codes and verifiers are never logged. The callback is single-use, state
+checked, bounded in size and time, and closed on completion/cancellation. Auth errors use
+fixed descriptions rather than echoing provider response bodies. See ADR 0012 and PRIVACY.md.
 
 ## Contributing and architecture
 
