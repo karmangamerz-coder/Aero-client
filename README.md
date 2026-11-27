@@ -25,7 +25,9 @@ to resolve Minecraft API approval for Aero's own client ID. This release does no
 Modrinth discovery starts with all versions/loaders. Narrow the filters as desired;
 installation always uses the selected instance's exact version and loader. Vanilla is not
 sent as a Modrinth loader filter. Mods require a Fabric/Forge instance; resource packs can
-be installed on Vanilla. Modpack import remains unavailable.
+be installed on Vanilla. Resource packs and shaders ignore mod-loader filters. Opening
+Discover loads projects; errors and the installation destination appear beside the results.
+Modpack import remains unavailable.
 
 The primary launcher is native Rust using Freya/Skia, Tokio, Reqwest and Serde. It provides
 the Aero Light, Dark and Lite interface, resumable first-launch setup, official Microsoft

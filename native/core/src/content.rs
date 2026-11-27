@@ -80,7 +80,9 @@ pub async fn discover(
     if !version.is_empty() {
         facets.push(vec![format!("versions:{version}")]);
     }
-    if ["fabric", "forge", "neoforge", "quilt"].contains(&loader) {
+    if ["mod", "modpack"].contains(&project_type)
+        && ["fabric", "forge", "neoforge", "quilt"].contains(&loader)
+    {
         facets.push(vec![format!("categories:{loader}")]);
     }
     ensure!(
@@ -150,7 +152,12 @@ pub async fn project_detail(
         cancel,
     )
     .await?;
-    let versions_url = project_versions_url(project, version, loader)?;
+    let versions_url = project_versions_url(
+        project,
+        version,
+        loader,
+        project_json["project_type"].as_str().unwrap_or(""),
+    )?;
     let versions_json = json(client, versions_url.as_str(), cancel).await?;
     Ok(ProjectDetail {
         project_id: project_json["id"].as_str().unwrap_or("").into(),
@@ -179,7 +186,12 @@ pub async fn project_detail(
     })
 }
 
-fn project_versions_url(project: &str, version: &str, loader: &str) -> Result<reqwest::Url> {
+fn project_versions_url(
+    project: &str,
+    version: &str,
+    loader: &str,
+    project_type: &str,
+) -> Result<reqwest::Url> {
     validate_project_identity(project)?;
     let mut versions_url = reqwest::Url::parse(&format!(
         "https://api.modrinth.com/v2/project/{project}/version"
@@ -189,7 +201,9 @@ fn project_versions_url(project: &str, version: &str, loader: &str) -> Result<re
             .query_pairs_mut()
             .append_pair("game_versions", &serde_json::to_string(&[version])?);
     }
-    if ["fabric", "forge", "neoforge", "quilt"].contains(&loader) {
+    if ["mod", "modpack"].contains(&project_type)
+        && ["fabric", "forge", "neoforge", "quilt"].contains(&loader)
+    {
         versions_url
             .query_pairs_mut()
             .append_pair("loaders", &serde_json::to_string(&[loader])?);
@@ -203,16 +217,25 @@ mod filter_tests {
     #[test]
     fn vanilla_and_all_loaders_do_not_hide_project_releases() {
         for loader in ["", "vanilla"] {
-            let url = project_versions_url("sodium", "1.21.11", loader).unwrap();
+            let url = project_versions_url("sodium", "1.21.11", loader, "mod").unwrap();
             let pairs: std::collections::HashMap<_, _> = url.query_pairs().collect();
             assert_eq!(pairs.get("game_versions").unwrap(), "[\"1.21.11\"]");
             assert!(!pairs.contains_key("loaders"));
         }
-        let url = project_versions_url("sodium", "", "fabric").unwrap();
+        let url = project_versions_url("sodium", "", "fabric", "mod").unwrap();
         let pairs: std::collections::HashMap<_, _> = url.query_pairs().collect();
         assert_eq!(pairs.get("loaders").unwrap(), "[\"fabric\"]");
         assert!(!pairs.contains_key("game_versions"));
-        assert!(project_versions_url("../unsafe", "", "").is_err());
+        assert!(project_versions_url("../unsafe", "", "", "mod").is_err());
+    }
+    #[test]
+    fn packs_and_shaders_do_not_inherit_a_mod_loader() {
+        for kind in ["resourcepack", "shader"] {
+            let url = project_versions_url("fixture", "1.21.11", "fabric", kind).unwrap();
+            let pairs: std::collections::HashMap<_, _> = url.query_pairs().collect();
+            assert!(!pairs.contains_key("loaders"));
+            assert!(pairs.contains_key("game_versions"));
+        }
     }
 }
 
@@ -254,20 +277,15 @@ async fn compatible_version(
     client: &DownloadClient,
     project: &str,
     instance: &Instance,
+    project_type: &str,
     cancel: &CancellationToken,
 ) -> Result<Value> {
-    let mut url = reqwest::Url::parse(&format!(
-        "https://api.modrinth.com/v2/project/{project}/version"
-    ))?;
-    url.query_pairs_mut().append_pair(
-        "game_versions",
-        &serde_json::to_string(&[&instance.version])?,
-    );
-    let loader = loader_name(instance.loader);
-    if !loader.is_empty() {
-        url.query_pairs_mut()
-            .append_pair("loaders", &serde_json::to_string(&[loader])?);
-    }
+    let url = project_versions_url(
+        project,
+        &instance.version,
+        loader_name(instance.loader),
+        project_type,
+    )?;
     let versions = json(client, url.as_str(), cancel).await?;
     let list = versions
         .as_array()
@@ -346,7 +364,8 @@ pub async fn install(
             "Mods require a Fabric or Forge instance. Select or create a compatible modded instance first."
         );
         let destination = folder(project_type)?;
-        let version = compatible_version(client, project_id, &instance, cancel).await?;
+        let version =
+            compatible_version(client, project_id, &instance, project_type, cancel).await?;
         for item in version["dependencies"].as_array().into_iter().flatten() {
             if item["dependency_type"] == "required" {
                 if let Some(id) = item["project_id"].as_str() {

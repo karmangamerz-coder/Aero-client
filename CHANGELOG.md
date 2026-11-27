@@ -13,6 +13,8 @@ This project uses Semantic Versioning. Dates use ISO 8601.
 ### Fixed
 - Modrinth project details no longer filter releases by the nonexistent "vanilla" loader.
 - Discovery starts with all versions/loaders instead of inheriting setup filters.
+- Opening Discover loads projects; search errors and the installation target are visible.
+- Resource packs and shaders ignore mod-loader filters in search, details and installation.
 - Mods cannot install into Vanilla instances; compatible Fabric/Forge instances are required.
 
 ### Known limitation

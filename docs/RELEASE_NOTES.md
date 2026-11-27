@@ -9,6 +9,8 @@ installations keep their completion state across upgrades. Settings can rerun se
 Modrinth discovery begins with all versions and loaders. Project details no longer send
 "vanilla" as a loader filter; mods require a compatible Fabric/Forge instance. Installation
 still resolves exact instance compatibility and verifies published file hashes.
+Packs and shaders omit irrelevant mod-loader filters in search, details and installation.
+Discover loads on navigation and displays search failures and the installation target.
 Modpack import remains unavailable.
 
 Microsoft's browser callback now clearly says sign-in is still pending. Aero displays

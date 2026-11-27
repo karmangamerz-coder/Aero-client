@@ -18,6 +18,8 @@ a source implementation does not imply all live game adapters or benchmarks are 
   an upgrade retires their saved version/schema; interrupted setup still resumes.
 - Modrinth browser defaults to unfiltered version/loader; project detail ignores Vanilla
   as a loader filter. Mod installation refuses Vanilla instances before fetching files.
+  Packs/shaders omit mod-loader filters throughout search/detail/install. Discover loads on
+  navigation and surfaces empty results/errors and the selected installation destination.
 - OAuth callback no longer implies full success. Generation-guarded verification progress
   and persistent in-app failures explain why an account has not been saved.
 - Local user log reported Minecraft registration rejection after OAuth. This is an external
