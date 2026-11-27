@@ -73,14 +73,16 @@ fn parse_loader(value: &str) -> Loader {
 // --------------------------------------------------------------------- play
 
 pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
-    let compact = ui.window_height < 720.;
-    let (character_width, character_height) = if compact {
-        (155., 254.)
-    } else if ui.window_height < 900. {
-        (190., 311.)
-    } else {
-        (225., 369.)
+    let p = Palette {
+        art_text: Color::WHITE,
+        art_dim: Color::from_rgb(219, 235, 245),
+        ..p
     };
+    let compact = ui.window_height < 720.;
+    // Reserve the silver frame, selectors and authentication notice before
+    // sizing artwork. Required controls must fit even at the minimum window.
+    let character_height = (ui.window_height - 430.).clamp(110., 369.);
+    let character_width = character_height * 0.61;
     let instance = chosen(s).cloned();
     let account = s.accounts.active_account().cloned();
     let page = ui.page;
@@ -244,10 +246,17 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
 
     rect()
         .expanded()
-        .padding((0., 0.))
+        .padding((14., 18.))
         .child(
             rect()
                 .expanded()
+                .corner_radius(14.)
+                .background(if p.dark {
+                    Color::from_rgb(46, 68, 90)
+                } else {
+                    Color::from_rgb(82, 119, 146)
+                })
+                .border(rim(p))
                 .padding(if compact {
                     (10., 18., 12., 18.)
                 } else {
@@ -310,9 +319,7 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     ),
                 ))
                 .child(rect().height(Size::px(18.)).center().child(art_dim(
-                    if !s.signin_state.is_empty() {
-                        s.signin_state.as_str()
-                    } else if s.launching {
+                    if s.launching {
                         "Live logs are on the Downloads page."
                     } else if instance.is_some() && !ready {
                         "Official files are downloaded, verified and repairable."
@@ -786,6 +793,9 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 .enabled(
                                     !s.busy
                                         && !instance.is_empty()
+                                        && (item.project_type != "mod"
+                                            || chosen(s)
+                                                .is_some_and(|i| i.loader != Loader::Vanilla))
                                         && item.project_type != "modpack",
                                 )
                                 .on_press(move |_| {
@@ -953,9 +963,11 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 )
                 .maybe(detail.is_some(), |r| r.child(detail.unwrap()))
                 .child(strong("Search results", 14., p.text))
+                .child(hint(p, s.discovery_status.clone()))
+                .child(dim(chosen(s).map(|i| format!("Install destination: {} · {} · {}", i.name, i.version, i.loader)).unwrap_or_else(|| "Select an instance to install content. Mods require Fabric or Forge.".into()), 11., p))
                 .child(rect().width(Size::fill()).spacing(8.).children(results))
                 .maybe(s.results.is_empty(), |r| {
-                    r.child(hint(p, if s.busy { "Loading Modrinth…" } else { "Search results will appear here." }))
+                    r.child(hint(p, if s.busy { "Loading Modrinth…" } else { "No projects shown. Search Modrinth, or clear the version, loader and category filters and try again." }))
                 })
                 .child(strong("Installed content", 14., p.text))
                 .child(rect().width(Size::fill()).spacing(8.).children(installed))
@@ -1370,7 +1382,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     p,
                 ))
                 .child(dim(
-                    "Ownership is verified with Microsoft. Aero cannot and will not bypass it. You can skip this step and browse the launcher without signing in.",
+                    "Ownership is verified with Microsoft. You may continue setup without an account, but playing requires successful Minecraft verification.",
                     11.5,
                     p,
                 ))
@@ -1385,7 +1397,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                             .map(|a| format!("Signed in as {}.", a.name))
                             .unwrap_or_else(|| "Not signed in.".into())
                     } else {
-                        s.signin_state.clone()
+                        "Sign-in progress or failure is shown above this step.".into()
                     },
                     11.,
                     p,
@@ -1659,35 +1671,21 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 }),
         );
     }
-    nav = nav.child(
-        ghost(
-            if step == onboarding::LAST_STEP {
-                "Open the launcher"
-            } else {
-                "Skip setup"
-            },
-            p,
-        )
-        .enabled(!s.busy)
-        .on_press({
+    if step == onboarding::LAST_STEP {
+        nav = nav.child(ghost("Finish setup", p).enabled(!s.busy).on_press({
             let backend = backend.clone();
             let answers = base.clone();
-            move |_| {
-                if step == onboarding::LAST_STEP {
-                    backend.send(Command::FinishSetup(step, answers.clone(), false));
-                } else {
-                    backend.send(Command::DeferSetup(step, answers.clone()));
-                }
-            }
-        }),
-    );
+            move |_| backend.send(Command::FinishSetup(step, answers.clone(), false))
+        }));
+    }
     let _ = w_auto;
 
     let wizard_width = (ui.window_width - 40.).clamp(620., 760.);
     // A flexible ScrollView keeps its content's intrinsic height in Freya and can
     // push the navigation row below a short window. Reserve the header, footer,
     // panel padding and gaps explicitly; long steps scroll inside this viewport.
-    let wizard_body_height = (ui.window_height - 210.).clamp(300., 780.);
+    let auth_notice_height = if s.signin_state.is_empty() { 0. } else { 124. };
+    let wizard_body_height = (ui.window_height - 210. - auth_notice_height).clamp(160., 780.);
     rect()
         .expanded()
         .padding((16., 20.))
@@ -1712,15 +1710,19 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .child(rect().width(Size::flex(1.)))
                         .child(step_dots(step, p)),
                 )
+                .maybe(!s.signin_state.is_empty(), |r| {
+                    r.child(crate::shell::auth_notice(s, p))
+                })
                 .child(
                     ScrollView::new()
                         .width(Size::fill())
                         .height(Size::px(wizard_body_height))
                         .child(content),
                 )
-                .maybe(!s.message.is_empty() && s.message != "Ready.", |r| {
-                    r.child(dim(s.message.clone(), 10.5, p))
-                })
+                .maybe(
+                    s.signin_state.is_empty() && !s.message.is_empty() && s.message != "Ready.",
+                    |r| r.child(dim(s.message.clone(), 10.5, p)),
+                )
                 .child(hairline(p))
                 .child(nav),
         )

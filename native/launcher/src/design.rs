@@ -6,7 +6,7 @@
 use bytes::Bytes;
 use freya::prelude::*;
 
-pub const RAIL_WIDTH: f32 = 58.;
+pub const RAIL_WIDTH: f32 = 164.;
 pub const TOP_BAR_HEIGHT: f32 = 52.;
 pub const STATUS_HEIGHT: f32 = 24.;
 pub const FONT: &str = "Segoe UI";
@@ -66,10 +66,10 @@ pub fn palette(name: &str) -> Palette {
         "Aero Lite" => Palette {
             dark: false,
             photo: false,
-            bg: Color::from_rgb(243, 246, 248),
+            bg: Color::from_rgb(235, 236, 238),
             glass: Color::from_rgb(255, 255, 255),
-            glass_soft: Color::from_rgb(250, 252, 253),
-            rail: Color::from_rgb(248, 250, 251),
+            glass_soft: Color::from_rgb(224, 226, 229),
+            rail: Color::from_rgb(238, 239, 241),
             surface: Color::from_rgb(255, 255, 255),
             surface_alt: Color::from_rgb(236, 241, 244),
             text: Color::from_rgb(29, 41, 50),
@@ -90,20 +90,20 @@ pub fn palette(name: &str) -> Palette {
         _ => Palette {
             dark: false,
             photo: true,
-            bg: Color::from_rgb(235, 248, 255),
-            glass: Color::from_argb(228, 250, 253, 255),
-            glass_soft: Color::from_argb(120, 255, 255, 255),
-            rail: Color::from_argb(120, 232, 248, 254),
-            surface: Color::from_argb(198, 255, 255, 255),
-            surface_alt: Color::from_argb(120, 214, 238, 250),
-            text: Color::from_rgb(16, 58, 84),
-            text_dim: Color::from_rgb(70, 104, 124),
-            art_text: Color::from_rgb(14, 52, 78),
-            art_dim: Color::from_rgb(34, 76, 98),
-            border: Color::from_rgb(150, 204, 224),
-            border_soft: Color::from_rgb(196, 226, 238),
+            bg: Color::from_rgb(222, 224, 227),
+            glass: Color::from_argb(242, 247, 247, 248),
+            glass_soft: Color::from_argb(226, 226, 228, 231),
+            rail: Color::from_argb(238, 238, 239, 240),
+            surface: Color::from_argb(245, 255, 255, 255),
+            surface_alt: Color::from_rgb(224, 232, 239),
+            text: Color::from_rgb(36, 43, 49),
+            text_dim: Color::from_rgb(85, 96, 106),
+            art_text: Color::from_rgb(33, 48, 63),
+            art_dim: Color::from_rgb(71, 91, 108),
+            border: Color::from_rgb(150, 158, 166),
+            border_soft: Color::from_rgb(194, 200, 206),
             accent: Color::from_rgb(8, 126, 186),
-            accent_soft: Color::from_argb(96, 122, 210, 240),
+            accent_soft: Color::from_rgb(203, 224, 241),
             accent_text: Color::WHITE,
             green: Color::from_rgb(70, 168, 54),
             green_hover: Color::from_rgb(88, 190, 64),
@@ -192,7 +192,7 @@ pub fn panel(p: Palette) -> Rect {
         .background(p.glass)
         .border(rim(p))
         .maybe(p.photo, |r| {
-            r.backdrop_blur(10.).shadow(
+            r.shadow(
                 Shadow::new()
                     .y(5.)
                     .blur(18.)
@@ -496,10 +496,10 @@ pub fn progress(percent: f32, p: Palette) -> Rect {
         )
 }
 
-/// Static original landscape: sky, hills and water, drawn once as an SVG and cached
+/// Original silver glass folds, drawn once as an SVG and cached
 /// by Skia. No live blur, no per-frame work.
 pub fn landscape() -> SvgViewer {
-    SvgViewer::new(include_bytes!("../assets/landscape.svg"))
+    SvgViewer::new(include_bytes!("../assets/silver-glass.svg"))
         .position(Position::new_absolute())
         .width(Size::fill())
         .height(Size::fill())

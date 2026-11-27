@@ -160,7 +160,7 @@ impl BrowserLogin {
                 }
                 let result = callback(target, self.state.secret());
                 let body = if result.is_ok() {
-                    "Sign-in received. Return to Aero Client. You may close this tab."
+                    "Microsoft authorization received. Sign-in is not finished yet. Return to Aero Client: it must still verify Xbox access, Minecraft Java ownership and secure account storage. Aero will show the final result there. You may close this tab."
                 } else {
                     "Sign-in could not be verified. Return to Aero Client and try again."
                 };

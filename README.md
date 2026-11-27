@@ -12,6 +12,23 @@ account that owns Java Edition.
 
 ## 2.0.0
 
+This refinement adds silver Vista-inspired chrome, labeled navigation and a blue inset
+Play surface. First-launch setup is required once, resumes when interrupted and has no
+Skip action. Completed installations stay completed across upgrades; rerun it in Settings.
+
+**Sign-in status:** browser authorization alone does not add an account. Aero must also
+complete Xbox, Minecraft ownership/profile checks and credential-vault storage. The browser
+callback now says verification is pending, and Aero keeps failures visible. The observed
+live attempt reported a registration rejection (HTTP 403); the project owner still needs
+to resolve Minecraft API approval for Aero's own client ID. This release does not bypass it.
+
+Modrinth discovery starts with all versions/loaders. Narrow the filters as desired;
+installation always uses the selected instance's exact version and loader. Vanilla is not
+sent as a Modrinth loader filter. Mods require a Fabric/Forge instance; resource packs can
+be installed on Vanilla. Resource packs and shaders ignore mod-loader filters. Opening
+Discover loads projects; errors and the installation destination appear beside the results.
+Modpack import remains unavailable.
+
 The primary launcher is native Rust using Freya/Skia, Tokio, Reqwest and Serde. It provides
 the Aero Light, Dark and Lite interface, resumable first-launch setup, official Microsoft
 browser PKCE authentication, OS credential-vault storage, verified Minecraft and Java

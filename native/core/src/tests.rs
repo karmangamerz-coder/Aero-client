@@ -532,7 +532,7 @@ fn every_valid_wizard_step_advances_exactly_once() {
 }
 
 #[test]
-fn wizard_back_skip_and_repeated_next_are_safe() {
+fn wizard_back_and_repeated_next_are_safe() {
     use crate::onboarding::{Direction, Progress};
     let answers = crate::onboarding::Onboarding::default();
     let first = Progress::default()
@@ -542,20 +542,12 @@ fn wizard_back_skip_and_repeated_next_are_safe() {
         first.navigate(0, Direction::Next, answers.clone()).is_err(),
         "a queued second click must not advance a second step"
     );
-    let skipped = first.navigate(1, Direction::Skip, answers.clone()).unwrap();
+    let skipped = first.navigate(1, Direction::Next, answers.clone()).unwrap();
     assert_eq!(skipped.current_step(), 2);
     let backed = skipped
         .navigate(2, Direction::Back, answers.clone())
         .unwrap();
     assert_eq!(backed.current_step(), 1);
-    assert!(
-        Progress {
-            step: 3,
-            ..Default::default()
-        }
-        .navigate(3, Direction::Skip, answers)
-        .is_err()
-    );
 }
 
 #[test]
@@ -631,17 +623,23 @@ async fn interrupted_setup_resumes_and_completion_persists() {
 }
 
 #[tokio::test]
-async fn setup_later_opens_launcher_without_mutating_instances() {
+async fn completed_setup_survives_retired_answer_values() {
     use crate::onboarding::{self, Progress};
     let dir = tempfile::tempdir().unwrap();
-    let before = std::fs::read_dir(dir.path()).unwrap().count();
-    let deferred = Progress::default()
-        .defer(0, onboarding::Onboarding::default())
-        .unwrap();
-    onboarding::save(dir.path(), &deferred).await.unwrap();
-    assert!(!onboarding::load(dir.path()).await.needs_setup());
-    assert_eq!(before + 1, std::fs::read_dir(dir.path()).unwrap().count());
-    assert!(!dir.path().join("instances").exists());
+    let mut progress = Progress {
+        completed: true,
+        ..Default::default()
+    };
+    progress.answers.version = "retired-version".into();
+    std::fs::write(
+        onboarding::file(dir.path()),
+        serde_json::to_vec(&progress).unwrap(),
+    )
+    .unwrap();
+    let loaded = onboarding::load(dir.path()).await;
+    assert!(!loaded.needs_setup());
+    assert_eq!(loaded.current_step(), onboarding::LAST_STEP);
+    assert!(loaded.answers.validate().is_ok());
 }
 
 #[test]

@@ -29,20 +29,18 @@ never sacrifice correctness or security to reduce cost.
   crash-report discovery. Never run arbitrary commands from remote metadata.
 - The first-launch setup wizard (`native/core/src/onboarding.rs`, `pages::wizard`) is a
   permanent feature: it must resume after a restart, persist completion, never show
-  again once completed, and be re-runnable from Settings.
+  again once completed, and be re-runnable from Settings. No Skip/defer action; browsing without sign-in is allowed,
+  but every setup step must be visited and game launch still requires ownership.
 
-## Permanent visual system (M2.1)
-- Modern Modrinth-inspired usability with original Frutiger Aero / Windows 7 Aero styling:
-  sky-blue and green landscape, translucent blue glass navigation and controls, subtle
-  gloss, moderate corner radii, Segoe UI, consistent outline SVG icons, compact spacing.
-- Home screen: narrow icon-only rail, Aero branding in the top bar, Microsoft account
-  selector at top-right, large interactive character preview (real skin when signed in,
-  original Aero fallback otherwise), username and online state, compact instance/version/
-  loader selectors beneath the character, one glossy green Launch button with a settings
-  button beside it, installation progress shown in the launch control.
+## Permanent visual system (2.0.0 refinement)
+- Follow the user's silver Vista reference with original assets: neutral silver glass,
+  an Explorer-style labeled sidebar, blue inset Play panel, subtle static folds, Segoe UI,
+  thin gray rims and restrained gloss. Dark and Lite presets remain available.
+- Keep Aero branding, account selector, skin preview, instance/version/loader selection
+  and the single Launch action. Do not copy Windows logos or add fake window buttons.
 - No news section, no promotional headings, no dashboard cards, no badges or decorations
   that do not carry information. No excessive glow, lens flares, bubbles, oversaturation,
-  live blur or copied branding. Static landscape artwork only; no per-frame animation.
+  live blur or copied branding. Static original vector artwork only; no per-frame animation.
 - Appearance presets: Aero Light, Aero Dark, Aero Lite (flat, no photo, cheapest).
 - The same system applies to every page, the wizard, and future mod menus, HUD editors
   and music overlays.

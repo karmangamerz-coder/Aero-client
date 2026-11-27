@@ -10,6 +10,30 @@ The native Rust/Freya launcher is primary; the Java client and JavaFX fallback r
 independently buildable. M4–M9 contain the implemented foundations listed in ROADMAP.md;
 a source implementation does not imply all live game adapters or benchmarks are finished.
 
+## 2.0.0 refinement
+
+The owner requested keeping this update at version 2.0.0. Source/package metadata is
+aligned accordingly; the existing published v2.0.0 tag and artifacts have not been replaced.
+
+- Silver glass chrome, labeled sidebar, original vector background and blue inset Play panel.
+  Existing Dark/Lite preferences remain respected.
+- Removed setup skipping/defer commands. Valid completed records stay completed even if
+  an upgrade retires their saved version/schema; interrupted setup still resumes.
+- Modrinth browser defaults to unfiltered version/loader; project detail ignores Vanilla
+  as a loader filter. Mod installation refuses Vanilla instances before fetching files.
+  Packs/shaders omit mod-loader filters throughout search/detail/install. Discover loads on
+  navigation and surfaces empty results/errors and the selected installation destination.
+- OAuth callback no longer implies full success. Generation-guarded verification progress
+  and persistent in-app failures explain why an account has not been saved.
+  The notice also appears outside the setup scroll area on every step; its height is reserved
+  before laying out the body. Completion is published before optional skin downloads and
+  failures before diagnostic disk writes. A subsequent attempt in the isolated preview's
+  data directory again logged registration rejection, not successful sign-in.
+- Local user log reported Minecraft registration rejection after OAuth. This is an external
+  authorization gate, not evidence of successful login. Never bypass it or borrow an ID.
+- Local formatting can run; local tests cannot link without MSVC. New regression tests and
+  platform packaging must be verified by the feature PR's GitHub Actions before release.
+
 ## Authentication architecture (2026-11-27)
 
 - native/core/src/oauth_pkce.rs: oauth2 5.0.0, authorization-code flow with S256 PKCE,
