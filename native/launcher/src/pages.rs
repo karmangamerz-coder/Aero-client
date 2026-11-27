@@ -83,13 +83,10 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
         p
     };
     let compact = ui.window_height < 720.;
-    let (character_width, character_height) = if compact {
-        (155., 254.)
-    } else if ui.window_height < 900. {
-        (190., 311.)
-    } else {
-        (225., 369.)
-    };
+    // Reserve the silver frame, selectors and authentication notice before
+    // sizing artwork. Required controls must fit even at the minimum window.
+    let character_height = (ui.window_height - 430.).clamp(110., 369.);
+    let character_width = character_height * 0.61;
     let instance = chosen(s).cloned();
     let account = s.accounts.active_account().cloned();
     let page = ui.page;
@@ -326,9 +323,7 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     ),
                 ))
                 .child(rect().height(Size::px(18.)).center().child(art_dim(
-                    if !s.signin_state.is_empty() {
-                        s.signin_state.as_str()
-                    } else if s.launching {
+                    if s.launching {
                         "Live logs are on the Downloads page."
                     } else if instance.is_some() && !ready {
                         "Official files are downloaded, verified and repairable."
@@ -1725,7 +1720,15 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .child(content),
                 )
                 .maybe(!s.message.is_empty() && s.message != "Ready.", |r| {
-                    r.child(dim(s.message.clone(), 10.5, p))
+                    r.child(dim(
+                        if s.signin_state.is_empty() {
+                            s.message.clone()
+                        } else {
+                            "Sign-in status is shown in the account step.".into()
+                        },
+                        10.5,
+                        p,
+                    ))
                 })
                 .child(hairline(p))
                 .child(nav),
