@@ -85,6 +85,7 @@ pub fn top_bar(_ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Rect {
         .child(logo(24.))
         .child(strong("Aero Client", 15.5, p.art_text))
         .child(rect().width(Size::flex(1.)))
+        .child(character(&s.head, 28., 28.))
         .child(
             rect()
                 .width(Size::px(190.))

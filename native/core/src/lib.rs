@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pub mod auth;
+mod oauth_pkce;
+mod vault;
 pub mod content;
 pub mod hardware;
 pub mod install;

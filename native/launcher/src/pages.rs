@@ -89,8 +89,12 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
         .as_ref()
         .map(|a| a.name.clone())
         .unwrap_or_else(|| "Not signed in".to_owned());
-    let status = if account.is_some() {
+    let status = if s.authenticating {
+        "Signing in…"
+    } else if account.as_ref().is_some_and(|a| a.is_active_token()) {
         "Online"
+    } else if account.is_some() {
+        "Session refreshes when you play"
     } else {
         "Signed out"
     };
@@ -104,7 +108,9 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     let installing = s.busy && percent > 0.;
 
     let ready = instance.as_ref().is_some_and(|i| i.status == "READY");
-    let launch_action: Element = if s.launching {
+    let launch_action: Element = if s.authenticating {
+        launch_button(p, "Waiting for Microsoft…", false).into_element()
+    } else if s.launching {
         rect()
             .width(Size::px(270.))
             .height(Size::px(54.))
@@ -117,7 +123,7 @@ pub fn play(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     } else if installing {
         launch_progress(p, percent, "Installing").into_element()
     } else if account.is_none() {
-        launch_button(p, "Sign in to play", true)
+        launch_button(p, "Sign in with Microsoft", true)
             .on_press({
                 let backend = b.clone();
                 move |_| backend.send(Command::SignIn)
@@ -1171,13 +1177,13 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 )),
                         )
                         .child(dim(
-                            "This public application ID is required for official device-code sign-in. It is not a password or secret.",
+                            "This public application ID is required for secure browser sign-in with PKCE. It is not a password or secret.",
                             10.5,
                             p,
                         ))
                         .child(rect().width(Size::fill()).spacing(6.).children(accounts))
                         .child(rect().horizontal().spacing(8.)
-                            .child(action("Add account", p).on_press({
+                            .child(action("Sign in with Microsoft", p).enabled(!s.authenticating).on_press({
                                 let backend = b.clone();
                                 move |_| backend.send(Command::SignIn)
                             }))
@@ -1185,6 +1191,10 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                                 let backend = b.clone();
                                 move |_| backend.send(Command::SignOut)
                             })))
+                        .maybe(s.authenticating, |r| {
+                            let backend = b.clone();
+                            r.child(action("Cancel sign-in", p).on_press(move |_| backend.send(Command::CancelSignIn)))
+                        })
                         .maybe(!s.signin_state.is_empty(), |r| {
                             r.child(hint(p, s.signin_state.clone()))
                         }),
@@ -1364,7 +1374,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     11.5,
                     p,
                 ))
-                .child(action("Sign in with Microsoft", p).on_press({
+                .child(action("Sign in with Microsoft", p).enabled(!s.authenticating).on_press({
                     let backend = backend.clone();
                     move |_| backend.send(Command::SignIn)
                 }))

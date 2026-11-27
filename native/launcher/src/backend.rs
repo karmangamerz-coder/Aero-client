@@ -11,7 +11,6 @@ use aero_core::{
     skin::{self, Skin},
 };
 use std::{
-    process::Stdio,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -38,9 +37,10 @@ pub struct Snapshot {
     pub accounts: Accounts,
     /// Composed character PNG: the signed-in skin, or the original Aero fallback.
     pub skin: Arc<Vec<u8>>,
+    pub head: Arc<Vec<u8>>,
     pub hardware: Option<Hardware>,
     pub onboarding: onboarding::Progress,
-    pub prompt: Option<auth::DevicePrompt>,
+    pub authenticating: bool,
     pub game_logs: Vec<String>,
     pub launching: bool,
     pub signin_state: String,
@@ -65,9 +65,10 @@ impl Default for Snapshot {
             progress: Progress::default(),
             accounts: Accounts::default(),
             skin: Arc::new(fallback_skin()),
+            head: Arc::new(skin::head(&Skin::fallback())),
             hardware: None,
             onboarding: onboarding::Progress::default(),
-            prompt: None,
+            authenticating: false,
             game_logs: vec![],
             launching: false,
             signin_state: String::new(),
@@ -93,6 +94,8 @@ pub enum Command {
     ToggleContent(String, String, bool),
     RemoveContent(String, String),
     SignIn,
+    CancelSignIn,
+    CompleteSignIn(u64, Result<Account, String>),
     SwitchAccount(String),
     SignOut,
     RemoveAccount(String),
@@ -125,14 +128,20 @@ impl Backend {
         self.launch_cancel.lock().unwrap().cancel();
     }
 
-    pub fn start(settings: Settings, accounts: Accounts, onboarding: onboarding::Progress) -> Self {
+    pub fn start(
+        settings: Settings,
+        accounts: Accounts,
+        onboarding: onboarding::Progress,
+        account_error: Option<String>,
+    ) -> Self {
         let (tx, mut commands) = mpsc::channel(24);
         let initial = Snapshot {
             settings,
             accounts,
             onboarding,
             storage: Store::default_root().display().to_string(),
-            message: "Ready.".into(),
+            message: account_error.clone().unwrap_or_else(|| "Ready.".into()),
+            signin_state: account_error.unwrap_or_default(),
             ..Default::default()
         };
         let (state, rx) = watch::channel(initial);
@@ -140,6 +149,7 @@ impl Backend {
         let launch_cancel = Arc::new(Mutex::new(CancellationToken::new()));
         let shared_cancel = cancel.clone();
         let shared_launch = launch_cancel.clone();
+        let completion_tx = tx.clone();
         tokio::spawn(async move {
             let report = state.clone();
             let installer = match Installer::new(
@@ -191,7 +201,11 @@ impl Backend {
             };
             if let Some(account) = saved_account {
                 let composed = character_for_client(&account).await;
-                state.send_modify(|s| s.skin = composed);
+                let head = head_for_client(&account).await;
+                state.send_modify(|s| {
+                    s.skin = composed;
+                    s.head = head;
+                });
             }
             // Hardware detection runs once, in the background, never on the UI thread.
             {
@@ -209,8 +223,23 @@ impl Backend {
                     });
                 });
             }
+            let mut signin_generation = 0u64;
+            let mut signin_cancel = CancellationToken::new();
+            let account_gate = Arc::new(tokio::sync::Mutex::new(()));
             while let Some(command) = commands.recv().await {
+                if matches!(
+                    command,
+                    Command::SignOut | Command::RemoveAccount(_) | Command::CancelSignIn
+                ) {
+                    signin_cancel.cancel();
+                    signin_generation = signin_generation.wrapping_add(1);
+                    state.send_modify(|s| {
+                        s.authenticating = false;
+                        s.signin_state.clear();
+                    });
+                }
                 if matches!(command, Command::Launch(_)) {
+                    let gate = account_gate.clone();
                     let token = CancellationToken::new();
                     *shared_launch.lock().unwrap() = token.clone();
                     let installer = installer.clone();
@@ -225,116 +254,84 @@ impl Backend {
                         s.message = "Starting Minecraft…".into();
                     });
                     tokio::spawn(async move {
-                        launch_instance(installer, state, id, token).await;
+                        launch_instance(installer, state, id, token, gate).await;
                     });
                     continue;
                 }
                 match command {
+                    Command::CancelSignIn => {
+                        state.send_modify(|s| s.message = "Microsoft sign-in cancelled.".into());
+                    }
                     Command::SignIn => {
-                        let configured_client_id =
-                            state.borrow().settings.microsoft_client_id.clone();
+                        if state.borrow().authenticating {
+                            continue;
+                        }
+                        signin_cancel = CancellationToken::new();
+                        signin_generation = signin_generation.wrapping_add(1);
+                        let generation = signin_generation;
+                        let configured = state.borrow().settings.microsoft_client_id.clone();
                         state.send_modify(|s| {
-                            s.signin_state = "Starting secure Microsoft sign-in…".into();
-                            s.message = "Preparing Microsoft device-code sign-in…".into();
+                            s.authenticating = true;
+                            s.signin_state = "Opening Microsoft in your browser…".into();
+                            s.message = "Waiting for Microsoft sign-in…".into();
                         });
-                        let client = match auth::client() {
-                            Ok(client) => client,
-                            Err(error) => {
-                                let message = format!("{error:#}");
-                                append_launcher_log("Microsoft sign-in", &message).await;
-                                state.send_modify(|s| {
-                                    s.signin_state = message.clone();
-                                    s.message = message;
-                                });
-                                continue;
-                            }
-                        };
-                        let state = state.clone();
-                        let opener_state = state.clone();
-                        let token = CancellationToken::new();
-                        *shared_cancel.lock().unwrap() = token.clone();
+                        let token = signin_cancel.clone();
+                        let completed = completion_tx.clone();
                         tokio::spawn(async move {
-                            let prompt = match auth::begin(&client, &configured_client_id).await {
-                                Ok(prompt) => prompt,
-                                Err(error) => {
-                                    let message = format!("Sign-in unavailable: {error:#}");
-                                    append_launcher_log("Microsoft sign-in", &message).await;
-                                    state.send_modify(|s| {
-                                        s.signin_state = message.clone();
-                                        s.message = message;
-                                    });
-                                    return;
+                            let result: anyhow::Result<Account> = async {
+                                let client = auth::client()?;
+                                let login = auth::begin(&configured).await?;
+                                anyhow::ensure!(open_browser(&login.authorization_url), "Could not open your default browser. Check the default-browser setting and retry.");
+                                let tokens = login.complete(&client, &token).await?;
+                                tokio::select! {
+                                    _ = token.cancelled() => anyhow::bail!("Microsoft sign-in cancelled."),
+                                    result = auth::finish(&client, &tokens) => Ok(result?.0),
                                 }
-                            };
-                            let browser_opened = open_browser(&prompt.verification_uri);
-                            state.send_modify(|s| {
-                                s.signin_state = format!(
-                                    "{}Enter code {} at {} — waiting for approval…",
-                                    if browser_opened {
-                                        ""
-                                    } else {
-                                        "The browser did not open. "
-                                    },
-                                    prompt.user_code,
-                                    prompt.verification_uri
-                                );
-                                s.prompt = Some(prompt.clone());
-                            });
-                            let tokens =
-                                match auth::poll(&client, &prompt, &token, &configured_client_id)
-                                    .await
-                                {
-                                    Ok(tokens) => tokens,
-                                    Err(error) => {
-                                        let message = format!("{error:#}");
-                                        append_launcher_log("Microsoft sign-in", &message).await;
-                                        state.send_modify(|s| {
-                                            s.signin_state = message.clone();
-                                            s.message = message;
-                                            s.prompt = None;
-                                        });
-                                        return;
-                                    }
-                                };
-                            state.send_modify(|s| {
-                                s.signin_state = "Verifying Xbox and Minecraft ownership…".into()
-                            });
-                            let (account, _profile) = match auth::finish(&client, &tokens).await {
-                                Ok(value) => value,
-                                Err(error) => {
-                                    let message = format!("{error:#}");
-                                    append_launcher_log("Microsoft ownership", &message).await;
-                                    state.send_modify(|s| {
-                                        s.signin_state = message.clone();
-                                        s.message = message;
-                                        s.prompt = None;
-                                    });
-                                    return;
-                                }
-                            };
+                            }.await;
+                            let _ = completed
+                                .send(Command::CompleteSignIn(
+                                    generation,
+                                    result.map_err(|e| e.to_string()),
+                                ))
+                                .await;
+                        });
+                    }
+                    Command::CompleteSignIn(generation, result) => {
+                        if generation != signin_generation {
+                            continue;
+                        }
+                        let _guard = account_gate.lock().await;
+                        let result: anyhow::Result<Account> = async {
+                            let account = result.map_err(anyhow::Error::msg)?;
                             let mut accounts = state.borrow().accounts.clone();
                             accounts.upsert(account.clone());
-                            if let Err(error) =
-                                auth::save_accounts(&Store::default_root(), &accounts).await
-                            {
-                                let message = format!("Cannot store the account: {error:#}");
-                                append_launcher_log("Microsoft account storage", &message).await;
+                            auth::save_accounts(&Store::default_root(), &accounts).await?;
+                            state.send_modify(|s| s.accounts = accounts);
+                            Ok(account)
+                        }
+                        .await;
+                        match result {
+                            Ok(account) => {
+                                let composed = character_for_client(&account).await;
+                                let head = head_for_client(&account).await;
                                 state.send_modify(|s| {
+                                    s.head = head;
+                                    s.skin = composed;
+                                    s.authenticating = false;
+                                    s.signin_state.clear();
+                                    s.message = format!("Signed in as {}.", account.name);
+                                });
+                            }
+                            Err(error) => {
+                                let message = error.to_string();
+                                append_launcher_log("Microsoft sign-in", &message).await;
+                                state.send_modify(|s| {
+                                    s.authenticating = false;
                                     s.signin_state = message.clone();
                                     s.message = message;
                                 });
-                                return;
                             }
-                            state.send_modify(|s| {
-                                s.accounts = accounts;
-                                s.signin_state = String::new();
-                                s.prompt = None;
-                                s.message = format!("Signed in as {}.", account.name);
-                            });
-                            let composed = character_for(&client, &account).await;
-                            state.send_modify(|s| s.skin = composed);
-                        });
-                        let _ = opener_state;
+                        }
                     }
                     command => {
                         let token = CancellationToken::new();
@@ -344,6 +341,7 @@ impl Backend {
                             s.message = "Working…".into();
                             s.progress = Progress::default();
                         });
+                        let _account_guard = account_gate.lock().await;
                         let result: Result<String, String> =
                             handle(installer.clone(), &state, command, &token).await;
                         if let Err(error) = &result {
@@ -654,7 +652,11 @@ async fn handle(
             if let Some(account) = account {
                 let composed = character_for_client(&account).await;
                 let name = account.name.clone();
-                state.send_modify(|s| s.skin = composed);
+                let head = head_for_client(&account).await;
+                state.send_modify(|s| {
+                    s.skin = composed;
+                    s.head = head;
+                });
                 Ok(format!("Playing as {name}."))
             } else {
                 Ok("Account switched.".into())
@@ -662,6 +664,9 @@ async fn handle(
         }
         Command::SignOut => {
             let mut accounts = state.borrow().accounts.clone();
+            if let Some(uuid) = accounts.active.clone() {
+                accounts.remove(&uuid);
+            }
             accounts.active = None;
             auth::save_accounts(&installer.store.root, &accounts)
                 .await
@@ -670,6 +675,7 @@ async fn handle(
             state.send_modify(|s| {
                 s.accounts = accounts;
                 s.skin = fallback;
+                s.head = Arc::new(skin::head(&Skin::fallback()));
                 s.game_logs.clear();
             });
             Ok("Signed out of Minecraft.".into())
@@ -690,7 +696,10 @@ async fn handle(
             });
             Ok("Account removed from this device.".into())
         }
-        Command::Launch(_) | Command::SignIn => unreachable!(),
+        Command::Launch(_)
+        | Command::SignIn
+        | Command::CancelSignIn
+        | Command::CompleteSignIn(_, _) => unreachable!(),
         Command::DetectHardware => {
             let detected = tokio::task::spawn_blocking(hardware::detect)
                 .await
@@ -829,9 +838,11 @@ async fn launch_instance(
     state: watch::Sender<Snapshot>,
     id: String,
     token: CancellationToken,
+    account_gate: Arc<tokio::sync::Mutex<()>>,
 ) {
     let result: anyhow::Result<()> = async {
         let instance = installer.store.read(&id).await?;
+        let guard = account_gate.lock().await;
         let mut account = state
             .borrow()
             .accounts
@@ -849,6 +860,7 @@ async fn launch_instance(
             state.send_modify(|s| s.accounts = accounts);
         }
         ensure_account(&account)?;
+        drop(guard);
         let memory = launch::effective_memory(&instance, settings.memory_mib);
         let java = if !instance.java_path.trim().is_empty() {
             Some(std::path::PathBuf::from(instance.java_path.trim()))
@@ -937,36 +949,17 @@ async fn character_for(client: &reqwest::Client, account: &Account) -> Arc<Vec<u
     }
 }
 
+async fn head_for_client(account: &Account) -> Arc<Vec<u8>> {
+    let texture = match auth::client() {
+        Ok(client) => auth::skin_bytes(&client, account, &Store::default_root())
+            .await
+            .ok()
+            .and_then(|bytes| Skin::decode(&bytes).ok())
+            .unwrap_or_else(Skin::fallback),
+        Err(_) => Skin::fallback(),
+    };
+    Arc::new(skin::head(&texture))
+}
 fn open_browser(url: &str) -> bool {
-    if !url.starts_with("https://") {
-        return false;
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        return std::process::Command::new("cmd")
-            .args(["/C", "start", "", url])
-            .creation_flags(0x0800_0000)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .is_ok();
-    }
-    #[cfg(target_os = "linux")]
-    {
-        return std::process::Command::new("xdg-open")
-            .arg(url)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .is_ok();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        return std::process::Command::new("open").arg(url).spawn().is_ok();
-    }
-    #[allow(unreachable_code)]
-    false
+    webbrowser::open(url).is_ok()
 }

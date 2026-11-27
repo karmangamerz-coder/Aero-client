@@ -73,7 +73,7 @@ impl DownloadClient {
                 .connect_timeout(Duration::from_secs(20))
                 .read_timeout(Duration::from_secs(30))
                 .user_agent(
-                    "AeroClient/1.0.0-beta.1 (+https://github.com/karmangamerz-coder/Aero-client)",
+                    "AeroClient/2.0.0 (+https://github.com/karmangamerz-coder/Aero-client)",
                 )
                 .build()?,
             test_origin: None,

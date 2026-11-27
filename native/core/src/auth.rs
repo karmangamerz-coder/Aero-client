@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //! Microsoft / Xbox / Minecraft authentication.
 //!
-//! Flow: OAuth 2.0 device code (official Microsoft endpoint, browser based — Aero
-//! never sees the password) → Xbox Live → XSTS → Minecraft services → entitlement
-//! check → profile and skin. Tokens are cached encrypted with DPAPI on Windows and
-//! are never logged, printed or sent anywhere except the official endpoints.
+//! Browser OAuth PKCE → Xbox → XSTS → Minecraft; refresh tokens live only in the OS vault.
 use anyhow::{Context, Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -15,16 +12,23 @@ use tokio::fs;
 
 /// A client id is public application metadata, not a secret. Aero intentionally
 /// does not borrow Minecraft's retired legacy id or another launcher's identity.
-const AUTHORITY: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
-const SCOPE: &str = "XboxLive.signin offline_access";
-const ACCOUNTS_FILE: &str = "accounts.bin";
+pub use crate::oauth_pkce::{BrowserLogin, begin};
 
 pub fn client_id(configured: &str) -> Result<String> {
     let value = std::env::var("AERO_MS_CLIENT_ID")
         .ok()
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| configured.trim().to_owned());
+        .unwrap_or_else(|| {
+            if configured.trim().is_empty() {
+                option_env!("AERO_MS_CLIENT_ID")
+                    .unwrap_or("")
+                    .trim()
+                    .to_owned()
+            } else {
+                configured.trim().to_owned()
+            }
+        });
     ensure!(
         !value.is_empty(),
         "Microsoft sign-in needs Aero's Azure public-client ID. Add it in Settings or set AERO_MS_CLIENT_ID; see README.md."
@@ -36,7 +40,7 @@ pub fn client_id(configured: &str) -> Result<String> {
     Ok(value)
 }
 
-fn now() -> u64 {
+pub(crate) fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|value| value.as_secs())
@@ -48,208 +52,29 @@ fn http() -> Result<reqwest::Client> {
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(20))
         .read_timeout(Duration::from_secs(30))
-        .user_agent("AeroClient/1.0.0-beta.1 (+https://github.com/karmangamerz-coder/Aero-client)")
+        .user_agent("AeroClient/2.0.0 (+https://github.com/karmangamerz-coder/Aero-client)")
         .build()?)
 }
 
-fn redact(text: &str) -> String {
-    // API errors can echo a token back; keep messages short and never log bodies
-    // that contain authorization material.
-    if text.contains("access_token") || text.contains("refresh_token") || text.contains("Token") {
-        "authentication failed; details withheld".into()
-    } else {
-        text.chars().take(240).collect()
-    }
+pub(crate) fn oauth_error(code: &str) -> String {
+    match code {
+        "invalid_grant" | "interaction_required" | "login_required" => "Your Microsoft session expired or was revoked. Sign in again.",
+        "unauthorized_client" | "invalid_client" => "Microsoft rejected Aero's application ID. Configure Aero's own approved public-client registration.",
+        "access_denied" | "consent_required" => "Microsoft sign-in was declined or requires consent. Family account restrictions must be resolved by the family organizer.",
+        _ => "Microsoft could not complete sign-in. Check the app registration and connection, then retry.",
+    }.into()
 }
 
-async fn post_json(
-    client: &reqwest::Client,
-    url: &str,
-    body: &serde_json::Value,
-) -> Result<serde_json::Value> {
-    let response = client
-        .post(url)
-        .json(body)
-        .send()
-        .await
-        .with_context(|| format!("Cannot reach {url}"))?;
-    let status = response.status();
-    let text = response.text().await.unwrap_or_default();
-    let value: serde_json::Value =
-        serde_json::from_str(&text).unwrap_or_else(|_| serde_json::json!({"error": redact(&text)}));
-    ensure!(
-        status.is_success(),
-        "{}",
-        auth_error(status.as_u16(), &value)
-    );
-    Ok(value)
-}
-
-fn auth_error(status: u16, value: &serde_json::Value) -> String {
-    if let Some(code) = value["XErr"].as_u64() {
-        return match code {
-            2148916233 => "This Microsoft account has no Xbox profile. Create one at xbox.com, then sign in again.".into(),
-            2148916235 => "Xbox Live is not available in this account's country or region.".into(),
-            2148916236 | 2148916237 => "This account needs adult verification on the Xbox website before it can be used.".into(),
-            2148916238 => "This is a child account. A parent must add it to a Microsoft family first.".into(),
-            _ => format!("Xbox services rejected the sign-in (XErr {code})."),
-        };
-    }
-    let code = value["error"].as_str().unwrap_or("unknown_error");
-    let detail = value["error_description"]
-        .as_str()
-        .or_else(|| value["message"].as_str())
-        .unwrap_or("")
-        .chars()
-        .take(200)
-        .collect::<String>();
-    format!("Microsoft sign-in error {code} (HTTP {status}). {detail}")
-        .trim_end()
-        .to_owned()
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct DevicePrompt {
-    pub device_code: String,
-    pub user_code: String,
-    pub verification_uri: String,
-    pub expires_in: u64,
-    pub interval: u64,
-    pub message: String,
-}
-
-/// Step 1: ask Microsoft for a browser sign-in code. The user types it on
-/// microsoft.com/link and approves; Aero never handles the password.
-pub async fn begin(client: &reqwest::Client, configured_client_id: &str) -> Result<DevicePrompt> {
-    let client_id = client_id(configured_client_id)?;
-    let response = client
-        .post(format!("{AUTHORITY}/devicecode"))
-        .form(&[("client_id", client_id), ("scope", SCOPE.into())])
-        .send()
-        .await
-        .context("Cannot reach Microsoft sign-in")?;
-    let status = response.status();
-    let value: serde_json::Value = response.json().await.unwrap_or_default();
-    ensure!(
-        status.is_success(),
-        "{}",
-        auth_error(status.as_u16(), &value)
-    );
-    Ok(DevicePrompt {
-        device_code: value["device_code"]
-            .as_str()
-            .context("Missing device code")?
-            .into(),
-        user_code: value["user_code"]
-            .as_str()
-            .context("Missing user code")?
-            .into(),
-        verification_uri: value["verification_uri"]
-            .as_str()
-            .unwrap_or("https://microsoft.com/link")
-            .into(),
-        expires_in: value["expires_in"].as_u64().unwrap_or(900),
-        interval: value["interval"].as_u64().unwrap_or(5).max(1),
-        message: value["message"].as_str().unwrap_or("").into(),
-    })
-}
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct MsTokens {
+    #[serde(default)]
+    pub application_id: String,
     pub access_token: String,
     pub refresh_token: String,
     pub expires_at: u64,
 }
 
-fn parse_ms(value: &serde_json::Value) -> Result<MsTokens> {
-    Ok(MsTokens {
-        access_token: value["access_token"]
-            .as_str()
-            .context("No access token")?
-            .into(),
-        refresh_token: value["refresh_token"].as_str().unwrap_or_default().into(),
-        expires_at: now()
-            + value["expires_in"]
-                .as_u64()
-                .unwrap_or(3600)
-                .saturating_sub(60),
-    })
-}
-
-/// Step 2: poll until the user approves in the browser.
-pub async fn poll(
-    client: &reqwest::Client,
-    prompt: &DevicePrompt,
-    cancel: &crate::CancellationToken,
-    configured_client_id: &str,
-) -> Result<MsTokens> {
-    let client_id = client_id(configured_client_id)?;
-    let deadline = now() + prompt.expires_in;
-    while now() < deadline {
-        ensure!(!cancel.is_cancelled(), "Sign-in cancelled");
-        tokio::time::sleep(Duration::from_secs(prompt.interval)).await;
-        let response = client
-            .post(format!("{AUTHORITY}/token"))
-            .form(&[
-                (
-                    "grant_type",
-                    "urn:ietf:params:oauth:grant-type:device_code".to_owned(),
-                ),
-                ("client_id", client_id.clone()),
-                ("device_code", prompt.device_code.clone()),
-            ])
-            .send()
-            .await
-            .context("Cannot reach Microsoft sign-in")?;
-        let status = response.status();
-        let value: serde_json::Value = response.json().await.unwrap_or_default();
-        if status.is_success() {
-            return parse_ms(&value);
-        }
-        match value["error"].as_str().unwrap_or("") {
-            "authorization_pending" => continue,
-            "slow_down" => {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                continue;
-            }
-            _ => bail!("{}", auth_error(status.as_u16(), &value)),
-        }
-    }
-    bail!("The sign-in code expired. Start again to get a new one.")
-}
-
-async fn refresh_tokens(
-    client: &reqwest::Client,
-    refresh: &str,
-    configured_client_id: &str,
-) -> Result<MsTokens> {
-    let client_id = client_id(configured_client_id)?;
-    let response = client
-        .post(format!("{AUTHORITY}/token"))
-        .form(&[
-            ("grant_type", "refresh_token".to_owned()),
-            ("client_id", client_id),
-            ("refresh_token", refresh.to_owned()),
-            ("scope", SCOPE.to_owned()),
-        ])
-        .send()
-        .await
-        .context("Cannot reach Microsoft sign-in")?;
-    let status = response.status();
-    let value: serde_json::Value = response.json().await.unwrap_or_default();
-    ensure!(
-        status.is_success(),
-        "{}",
-        auth_error(status.as_u16(), &value)
-    );
-    let mut tokens = parse_ms(&value)?;
-    if tokens.refresh_token.is_empty() {
-        tokens.refresh_token = refresh.to_owned();
-    }
-    Ok(tokens)
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Account {
     pub uuid: String,
     /// Minecraft username, the only identity shown in the interface.
@@ -305,92 +130,26 @@ impl Accounts {
     }
 }
 
-/// Steam-style token file: DPAPI on Windows, owner-only permissions elsewhere.
+/// Only non-secret account metadata is stored in the data directory.
 pub async fn load_accounts(root: &Path) -> Result<Accounts> {
-    let file = root.join(ACCOUNTS_FILE);
-    if !fs::try_exists(&file).await.unwrap_or(false) {
-        return Ok(Accounts::default());
-    }
-    let bytes = fs::read(&file).await?;
-    let plain = unseal(&bytes).context("Cannot decrypt the saved accounts on this device")?;
-    Ok(serde_json::from_slice(&plain).unwrap_or_default())
+    crate::vault::load(root).await
 }
-
 pub async fn save_accounts(root: &Path, accounts: &Accounts) -> Result<()> {
-    let plain = serde_json::to_vec(accounts)?;
-    let sealed = seal(&plain)?;
-    let path = root.join(ACCOUNTS_FILE);
-    crate::storage::write_atomic(&path, &sealed).await
+    crate::vault::save(root, accounts).await
 }
-
-#[cfg(windows)]
-fn seal(plain: &[u8]) -> Result<Vec<u8>> {
-    dpapi(plain, true)
+impl std::fmt::Debug for MsTokens {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("MsTokens([redacted])")
+    }
 }
-
-#[cfg(not(windows))]
-fn seal(plain: &[u8]) -> Result<Vec<u8>> {
-    Ok(plain.to_vec())
-}
-
-#[cfg(not(windows))]
-fn unseal(sealed: &[u8]) -> Result<Vec<u8>> {
-    Ok(sealed.to_vec())
-}
-
-#[cfg(windows)]
-fn unseal(sealed: &[u8]) -> Result<Vec<u8>> {
-    dpapi(sealed, false)
-}
-
-#[cfg(windows)]
-fn dpapi(input: &[u8], protect: bool) -> Result<Vec<u8>> {
-    use windows_sys::Win32::{
-        Foundation::LocalFree,
-        Security::Cryptography::{
-            CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData, CryptUnprotectData,
-        },
-    };
-    ensure!(input.len() <= 8 * 1024 * 1024, "Token file is too large");
-    let mut data = input.to_vec();
-    let mut output = CRYPT_INTEGER_BLOB::default();
-    let input_blob = CRYPT_INTEGER_BLOB {
-        cbData: data.len() as u32,
-        pbData: data.as_mut_ptr(),
-    };
-    // CRYPTPROTECT_UI_FORBIDDEN keeps DPAPI silent: no prompts, ever.
-    let _ = CRYPTPROTECT_UI_FORBIDDEN;
-    let ok = unsafe {
-        if protect {
-            CryptProtectData(
-                &input_blob,
-                std::ptr::null(),
-                std::ptr::null(),
-                std::ptr::null(),
-                std::ptr::null(),
-                1,
-                &mut output,
-            )
-        } else {
-            CryptUnprotectData(
-                &input_blob,
-                std::ptr::null_mut(),
-                std::ptr::null(),
-                std::ptr::null(),
-                std::ptr::null(),
-                1,
-                &mut output,
-            )
-        }
-    };
-    ensure!(ok != 0, "Windows DPAPI rejected the request");
-    let bytes = unsafe {
-        let slice = std::slice::from_raw_parts(output.pbData, output.cbData as usize);
-        let copy = slice.to_vec();
-        LocalFree(output.pbData as *mut core::ffi::c_void);
-        copy
-    };
-    Ok(bytes)
+impl std::fmt::Debug for Account {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Account")
+            .field("uuid", &self.uuid)
+            .field("name", &self.name)
+            .field("session", &"[redacted]")
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -403,64 +162,12 @@ pub struct Profile {
 
 /// Xbox → XSTS → Minecraft, returning the game session token and profile.
 async fn minecraft_chain(client: &reqwest::Client, ms: &MsTokens) -> Result<(Account, Profile)> {
-    let xbl = post_json(
-        client,
-        "https://user.auth.xboxlive.com/user/authenticate",
-        &serde_json::json!({
-            "Properties": {
-                "AuthMethod": "RPS",
-                "SiteName": "user.auth.xboxlive.com",
-                "RpsTicket": format!("d={}", ms.access_token),
-            },
-            "RelyingParty": "http://auth.xboxlive.com",
-            "TokenType": "JWT",
-        }),
-    )
-    .await
-    .context("Xbox Live sign-in failed")?;
-    let xbl_token = xbl["Token"]
-        .as_str()
-        .context("Xbox Live returned no token")?
-        .to_owned();
-    let uhs = xbl["DisplayClaims"]["xui"]
-        .as_array()
-        .and_then(|list| list.first())
-        .and_then(|entry| entry["uhs"].as_str())
-        .context("Xbox Live returned no user hash")?
-        .to_owned();
-
-    let xsts = post_json(
-        client,
-        "https://xsts.auth.xboxlive.com/xsts/authorize",
-        &serde_json::json!({
-            "Properties": {"SandboxId": "RETAIL", "UserTokens": [xbl_token]},
-            "RelyingParty": "rp://api.minecraftservices.com/",
-            "TokenType": "JWT",
-        }),
-    )
-    .await
-    .context("Xbox security token request failed")?;
-    let xsts_token = xsts["Token"]
-        .as_str()
-        .context("Xbox returned no security token")?
-        .to_owned();
-
-    let game = post_json(
-        client,
-        "https://api.minecraftservices.com/authentication/login_with_xbox",
-        &serde_json::json!({"identityToken": format!("XBL3.0 x={uhs};{xsts_token}")}),
-    )
-    .await
-    .context("Minecraft services rejected the sign-in")?;
-    let access_token = game["access_token"]
-        .as_str()
-        .context("Minecraft returned no token")?
-        .to_owned();
-    let access_expires_at = now()
-        + game["expires_in"]
-            .as_u64()
-            .unwrap_or(86_400)
-            .saturating_sub(120);
+    let game = minecraft_msa_auth::MinecraftAuthorizationFlow::new(MinecraftHttp(client.clone()))
+        .exchange_microsoft_token(&ms.access_token)
+        .await
+        .map_err(chain_error)?;
+    let access_token = game.access_token().as_ref().to_owned();
+    let access_expires_at = now() + u64::from(game.expires_in()).saturating_sub(120);
 
     let entitlements = client
         .get("https://api.minecraftservices.com/entitlements/mcstore")
@@ -520,6 +227,16 @@ async fn minecraft_chain(client: &reqwest::Client, ms: &MsTokens) -> Result<(Acc
             .unwrap_or("")
             .into(),
     };
+    uuid::Uuid::parse_str(&profile.uuid).context("Minecraft returned an invalid profile UUID")?;
+    ensure!(
+        !profile.name.is_empty()
+            && profile.name.len() <= 16
+            && profile
+                .name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_'),
+        "Minecraft returned an invalid player name"
+    );
     let account = Account {
         uuid: profile.uuid.clone(),
         name: profile.name.clone(),
@@ -533,7 +250,7 @@ async fn minecraft_chain(client: &reqwest::Client, ms: &MsTokens) -> Result<(Acc
     Ok((account, profile))
 }
 
-/// Complete a device-code sign-in and return the ready account.
+/// Complete a PKCE sign-in and return the ready account.
 pub async fn finish(client: &reqwest::Client, tokens: &MsTokens) -> Result<(Account, Profile)> {
     minecraft_chain(client, tokens).await
 }
@@ -545,10 +262,15 @@ pub async fn renew(
     configured_client_id: &str,
 ) -> Result<Account> {
     ensure!(
+        account.ms.application_id == client_id(configured_client_id)?,
+        "This session belongs to a different application registration. Sign in to Aero again."
+    );
+    ensure!(
         !account.ms.refresh_token.is_empty(),
         "This account needs to sign in again"
     );
-    let ms = refresh_tokens(client, &account.ms.refresh_token, configured_client_id).await?;
+    let ms =
+        crate::oauth_pkce::refresh(client, configured_client_id, &account.ms.refresh_token).await?;
     let (fresh, _) = minecraft_chain(client, &ms).await?;
     ensure!(
         fresh.uuid == account.uuid,
@@ -620,6 +342,7 @@ pub fn test_account(uuid: &str, name: &str) -> Account {
         skin_url: String::new(),
         owns_minecraft: true,
         ms: MsTokens {
+            application_id: "11111111-2222-3333-4444-555555555555".into(),
             access_token: "ms".into(),
             refresh_token: "refresh".into(),
             expires_at: now() + 3600,
@@ -628,4 +351,52 @@ pub fn test_account(uuid: &str, name: &str) -> Account {
         access_expires_at: now() + 3600,
         added_at: 0,
     }
+}
+#[derive(Clone)]
+struct MinecraftHttp(reqwest::Client);
+#[async_trait::async_trait]
+impl minecraft_msa_auth::HttpClient for MinecraftHttp {
+    type Error = reqwest::Error;
+    async fn call(
+        &self,
+        request: minecraft_msa_auth::HttpRequest,
+    ) -> std::result::Result<minecraft_msa_auth::HttpResponse, Self::Error> {
+        let response = self.0.execute(reqwest::Request::try_from(request)?).await?;
+        let status = response.status();
+        let body = response.bytes().await?.to_vec();
+        let mut result = minecraft_msa_auth::HttpResponse::new(body);
+        *result.status_mut() = status;
+        Ok(result)
+    }
+}
+fn chain_error<E: std::error::Error>(
+    error: minecraft_msa_auth::MinecraftAuthorizationError<E>,
+) -> anyhow::Error {
+    use minecraft_msa_auth::MinecraftAuthorizationError as Error;
+    let message = match error {
+        Error::AddToFamily => {
+            "Microsoft requires this account to belong to a family. Ask the family organizer to resolve the restriction."
+        }
+        Error::NoXbox => {
+            "This account has no Xbox profile. Create a profile at xbox.com, then retry."
+        }
+        Error::XboxLive {
+            code: 2148916236 | 2148916237,
+        } => {
+            "Xbox requires age or adult verification. Complete the official account steps with your family organizer."
+        }
+        Error::XboxLive { code: 2148916235 } => {
+            "Xbox Live is unavailable in this account's region."
+        }
+        Error::HttpStatus(status) if status.as_u16() == 403 => {
+            "Minecraft rejected Aero's application registration. Its client ID may need Minecraft API approval."
+        }
+        Error::HttpStatus(status) if status.as_u16() == 401 => {
+            "Microsoft session expired or was rejected. Sign in again."
+        }
+        _ => {
+            "Xbox or Minecraft authentication failed. Check the connection and account permissions, then retry."
+        }
+    };
+    anyhow::anyhow!(message)
 }

@@ -21,11 +21,11 @@ fn main() {
     let settings = runtime
         .block_on(aero_core::storage::Settings::load(&root))
         .unwrap_or_default();
-    let accounts = runtime
-        .block_on(aero_core::auth::load_accounts(&root))
-        .unwrap_or_default();
+    let account_result = runtime.block_on(aero_core::auth::load_accounts(&root));
+    let account_error = account_result.as_ref().err().map(ToString::to_string);
+    let accounts = account_result.unwrap_or_default();
     let onboarding = runtime.block_on(aero_core::onboarding::load(&root));
-    let backend = backend::Backend::start(settings, accounts, onboarding);
+    let backend = backend::Backend::start(settings, accounts, onboarding, account_error);
     launch(
         LaunchConfig::new()
             // 32 MiB of GPU resource cache holds the static landscape, the logo and

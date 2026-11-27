@@ -25,9 +25,9 @@ use std::{
 use tokio::{fs, io::AsyncBufReadExt, process::Child};
 
 pub const LAUNCHER_BRAND: &str = "Aero Client";
-pub const LAUNCHER_VERSION: &str = "1.0.0-beta.1";
+pub const LAUNCHER_VERSION: &str = "2.0.0";
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct LaunchSpec {
     pub program: PathBuf,
     pub args: Vec<String>,
@@ -36,7 +36,7 @@ pub struct LaunchSpec {
 
 impl LaunchSpec {
     pub fn command_line(&self) -> String {
-        format!("{} {}", self.program.display(), self.args.join(" "))
+        format!("{} {}", self.program.display(), self.describe())
     }
     /// Safe for logs: no token, no session id.
     pub fn describe(&self) -> String {
@@ -60,6 +60,15 @@ impl LaunchSpec {
             filtered.push(arg.clone());
         }
         filtered.join(" ")
+    }
+}
+
+impl std::fmt::Debug for LaunchSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LaunchSpec")
+            .field("program", &self.program)
+            .field("arguments", &self.describe())
+            .finish()
     }
 }
 
@@ -314,6 +323,15 @@ pub struct Outcome {
 pub struct Sink {
     pub on_line: Arc<dyn Fn(String) + Send + Sync>,
     pub log_file: PathBuf,
+    pub secrets: Vec<String>,
+}
+
+fn redact_line(line: &str, secrets: &[String]) -> String {
+    let mut line = line.to_owned();
+    for secret in secrets.iter().filter(|secret| !secret.is_empty()) {
+        line = line.replace(secret, "<redacted>");
+    }
+    line
 }
 
 pub struct Running {
@@ -415,6 +433,7 @@ pub async fn supervise(
                         if line.len() > 4096 {
                             continue;
                         }
+                        let line = redact_line(&line, &sink.secrets);
                         if line.contains("---- Minecraft Crash Report ----")
                             || line.contains("Minecraft has crashed")
                         {
@@ -441,7 +460,7 @@ pub async fn supervise(
             // Drain any remaining buffered output before finishing.
             while let Ok(line) = rx.try_recv() {
                 if line.len() <= 4096 {
-                    (sink.on_line)(line);
+                    (sink.on_line)(redact_line(&line, &sink.secrets));
                 }
             }
             break;
@@ -525,7 +544,15 @@ impl Installer {
         .await
         .ok();
         let running = spawn(&spec).await?;
-        let sink = Sink { on_line, log_file };
+        let sink = Sink {
+            on_line,
+            log_file,
+            secrets: vec![
+                account.access_token.clone(),
+                account.ms.access_token.clone(),
+                account.ms.refresh_token.clone(),
+            ],
+        };
         let mut outcome = supervise(running, sink, cancel).await?;
         if let Some(report) = crash_reports(&directory).await? {
             outcome.crash_report = Some(report);
