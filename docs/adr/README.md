@@ -11,6 +11,7 @@
 - [0009: Explicit, verified Modrinth content](0009-modrinth-content-boundary.md)
 - [0010: Adapter-neutral in-game client foundation](0010-client-modules-and-media.md)
 - [0011: GPL source, release artifacts and updates](0011-gpl-release-and-updates.md)
+- [0012: Browser PKCE and OS credential vault](0012-pkce-and-credential-vault.md)
 
 New records: numbered Markdown files containing status, context, decision,
 consequences and alternatives; link them here and in relevant PRs.

@@ -45,7 +45,7 @@ pub async fn begin(id: &str) -> Result<BrowserLogin> {
         .await
         .context("Cannot open the local Microsoft sign-in callback")?;
     let redirect = format!(
-        "http://127.0.0.1:{}/callback",
+        "http://localhost:{}/callback",
         listener.local_addr()?.port()
     );
     let client = client(id, Some(redirect))?;
@@ -281,7 +281,7 @@ mod tests {
         let url = reqwest::Url::parse(&a.authorization_url).unwrap();
         let query: std::collections::HashMap<_, _> = url.query_pairs().into_owned().collect();
         assert_eq!(query["code_challenge_method"], "S256");
-        assert!(query["redirect_uri"].starts_with("http://127.0.0.1:"));
+        assert!(query["redirect_uri"].starts_with("http://localhost:"));
         assert_ne!(a.state.secret(), b.state.secret());
         assert!(!a.authorization_url.contains(a.verifier.secret()));
         let cancel = crate::CancellationToken::new();
@@ -291,5 +291,71 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[test]
+    fn denied_signin_does_not_echo_provider_details() {
+        let error = callback(
+            "/callback?state=x&error=access_denied&error_description=secret",
+            "x",
+        )
+        .unwrap_err();
+        assert!(error.downcast_ref::<Denied>().is_some());
+        assert!(!error.to_string().contains("secret"));
+    }
+
+    #[test]
+    fn refresh_rotation_retains_previous_token_only_when_omitted() {
+        let response: oauth2::basic::BasicTokenResponse =
+            serde_json::from_value(serde_json::json!({
+                "access_token": "synthetic-access", "token_type": "Bearer", "expires_in": 3600
+            }))
+            .unwrap();
+        let tokens = tokens(&response, Some("previous-refresh"), "app").unwrap();
+        assert_eq!(tokens.refresh_token, "previous-refresh");
+        assert_eq!(tokens.application_id, "app");
+        let rotated: oauth2::basic::BasicTokenResponse =
+            serde_json::from_value(serde_json::json!({
+                "access_token": "synthetic-access", "refresh_token": "new-refresh",
+                "token_type": "Bearer", "expires_in": 3600
+            }))
+            .unwrap();
+        assert_eq!(
+            super::tokens(&rotated, Some("old"), "app")
+                .unwrap()
+                .refresh_token,
+            "new-refresh"
+        );
+        assert!(super::tokens(&response, None, "app").is_err());
+    }
+
+    #[tokio::test]
+    async fn valid_denial_closes_listener_and_cannot_replay() {
+        let login = begin("11111111-2222-3333-4444-555555555555").await.unwrap();
+        let address = login.listener.local_addr().unwrap();
+        let state = login.state.secret().clone();
+        let cancel = crate::CancellationToken::new();
+        let task = tokio::spawn(async move {
+            login
+                .complete(&crate::auth::client().unwrap(), &cancel)
+                .await
+        });
+        let mut stream = tokio::net::TcpStream::connect(address).await.unwrap();
+        let request = format!(
+            "GET /callback?state={state}&error=access_denied HTTP/1.1\r\nHost: localhost\r\n\r\n"
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut reply = String::new();
+        stream.read_to_string(&mut reply).await.unwrap();
+        assert!(reply.starts_with("HTTP/1.1 400"));
+        assert!(!reply.contains(&state));
+        assert!(
+            tokio::time::timeout(Duration::from_secs(5), task)
+                .await
+                .unwrap()
+                .unwrap()
+                .is_err()
+        );
+        assert!(tokio::net::TcpStream::connect(address).await.is_err());
     }
 }

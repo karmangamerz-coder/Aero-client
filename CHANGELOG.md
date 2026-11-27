@@ -2,6 +2,29 @@
 
 This project uses Semantic Versioning. Dates use ISO 8601.
 
+## 2.0.0 — 2026-11-27
+
+### Added
+- Microsoft authorization-code sign-in with S256 PKCE in the default browser, a single-use
+  loopback callback, state validation, timeout and cancellation.
+- OS credential-vault refresh storage, token-free account metadata, application ID binding,
+  automatic expired-session renewal, multiple accounts, switching and local logout/removal.
+- Minecraft authentication library integration, ownership/profile/skin checks, family and
+  application-approval errors, skin-head display and visible waiting state.
+- Tests for callback security, refresh rotation, metadata secrecy and safe error handling.
+- Microsoft registration/configuration guide and ADR 0012.
+
+### Changed
+- Version aligned to 2.0.0 across Cargo, Gradle, user agent and Windows installer.
+- Older DPAPI account files require sign-in again; instances and saves remain intact.
+- Includes the responsive UI, Modrinth filters and setup fixes from the refinement branch.
+
+### Security
+- No password collection, embedded login, client secret or borrowed app ID.
+- Auth library errors never echo token-bearing response bodies; launch diagnostics redact
+  known secrets and account Debug output omits sessions.
+- Live owning-account sign-in remains unverified until Aero's approved registration is supplied.
+
 ## 1.0.0-beta.1 — 2026-11-24
 
 ### Added

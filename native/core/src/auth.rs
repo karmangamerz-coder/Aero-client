@@ -400,3 +400,52 @@ fn chain_error<E: std::error::Error>(
     };
     anyhow::anyhow!(message)
 }
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn family_and_application_errors_are_actionable_and_safe() {
+        use minecraft_msa_auth::MinecraftAuthorizationError as Error;
+        assert!(
+            chain_error::<std::io::Error>(Error::AddToFamily)
+                .to_string()
+                .contains("family")
+        );
+        assert!(
+            chain_error::<std::io::Error>(Error::NoXbox)
+                .to_string()
+                .contains("Xbox profile")
+        );
+        let status = reqwest::StatusCode::FORBIDDEN;
+        assert!(
+            chain_error::<std::io::Error>(Error::HttpStatus(status))
+                .to_string()
+                .contains("approval")
+        );
+        let transport = Error::Http(std::io::Error::other("synthetic-secret"));
+        assert!(
+            !chain_error(transport)
+                .to_string()
+                .contains("synthetic-secret")
+        );
+        assert!(oauth_error("invalid_grant").contains("expired"));
+    }
+    #[tokio::test]
+    async fn refresh_rejects_a_different_application_before_network_access() {
+        let mut account = test_account("11111111222233334444555555555555", "Player");
+        account.ms.application_id = "different-app".into();
+        let result = renew(
+            &client().unwrap(),
+            &account,
+            "11111111-2222-3333-4444-555555555555",
+        )
+        .await;
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("different application")
+        );
+    }
+}

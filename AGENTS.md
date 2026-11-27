@@ -17,10 +17,10 @@ never sacrifice correctness or security to reduce cost.
   reactive state). Keep page functions hook-free and event-driven; never add a render
   timer, polling loop or periodic metadata request. Per-instance advanced settings belong
   in the instance manifest (`memory_mib`, `java_path`), not in global preferences.
-- Authentication lives in `native/core/src/auth.rs`: Microsoft OAuth 2.0 device code in
+- Authentication lives in `native/core/src/auth.rs`: Microsoft OAuth 2.0 authorization code with PKCE in
   the user's browser, Xbox Live, XSTS, Minecraft services, entitlement verification,
   profile and skin. Never collect a Microsoft password, never bypass ownership and never
-  log, print or persist tokens in plaintext on Windows (DPAPI) — no token in UI text,
+  log, print or persist tokens in plaintext; refresh tokens belong in the OS credential vault — no token in UI text,
   logs, crash reports, telemetry or error bodies.
 - Launching lives in `native/core/src/launch.rs`: arguments are built only from verified
   metadata written during installation, the token is passed as an argument (never on a
