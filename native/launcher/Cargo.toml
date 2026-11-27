@@ -9,7 +9,7 @@ rust-version.workspace = true
 aero-core = { path = "../core" }
 anyhow.workspace = true
 bytes = "1"
-freya = { version = "=0.5.3", features = ["sdk-tokio", "titlebar", "borderless"] }
+freya = { version = "=0.5.4", features = ["sdk-tokio", "titlebar", "borderless"] }
 tokio.workspace = true
 tokio-util.workspace = true
 serde_json.workspace = true
