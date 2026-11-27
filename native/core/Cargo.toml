@@ -24,7 +24,7 @@ oauth2 = { version = "=5.0.0", default-features = false, features = ["reqwest", 
 minecraft-msa-auth = { version = "=0.5.0", default-features = false }
 async-trait = "0.1"
 subtle = "2.6"
-png = "0.17"
+png = "0.18"
 sysinfo = { version = "0.33", default-features = false, features = [
     "system",
     "disk",
