@@ -421,6 +421,7 @@ pub fn instances(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     .horizontal()
                     .width(Size::fill())
                     .spacing(12.)
+                    .content(Content::Flex)
                     .cross_align(Alignment::Center)
                     .child(
                         rect()
@@ -663,6 +664,7 @@ pub fn instance_detail(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Elemen
                         .child(action("Back", p).on_press(move |_| detail.set(String::new())))
                         .child(strong(instance.name.clone(), 20., p.text))
                         .child(status_chip(&instance.status, p))
+                        .content(Content::Flex)
                         .child(rect().width(Size::flex(1.)))
                         .child(ghost("Downloads", p).on_press(move |_| page.set(3))),
                 )
@@ -670,6 +672,7 @@ pub fn instance_detail(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Elemen
                     rect()
                         .horizontal()
                         .spacing(12.)
+                        .content(Content::Flex)
                         .children([installation, advanced]),
                 )
                 .maybe(plan.is_some(), |r| match plan {
@@ -731,6 +734,7 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .horizontal()
                         .width(Size::fill())
                         .cross_align(Alignment::Center)
+                        .content(Content::Flex)
                         .child(strong(item.title.clone(), 13.5, p.text))
                         .child(rect().width(Size::flex(1.)))
                         .child(chip(item.project_type.clone(), p, false)),
@@ -808,6 +812,7 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .width(Size::fill())
                         .spacing(8.)
                         .cross_align(Alignment::Center)
+                        .content(Content::Flex)
                         .child(strong(item.title.clone(), 12.5, p.text))
                         .child(chip(
                             if item.enabled { "Enabled" } else { "Disabled" },
@@ -876,8 +881,8 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     "Search Modrinth and install verified compatible mods, resource packs and shaders into the selected instance.",
                 ))
                 .child(
-                    rect().horizontal().width(Size::fill()).spacing(8.).cross_align(Alignment::Center)
-                        .child(rect().width(Size::flex(1.)).child(Input::new(query).placeholder("Search Modrinth")))
+                    rect().horizontal().width(Size::fill()).spacing(8.).content(Content::Flex).cross_align(Alignment::Center)
+                        .child(rect().width(Size::flex(1.)).child(Input::new(query).expanded().placeholder("Search Modrinth")))
                         .child(rect().width(Size::px(100.)).child(
                             action("Search", p).enabled(!s.busy).on_press({
                                 let backend = backend.clone();
@@ -1085,6 +1090,7 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 .horizontal()
                 .width(Size::fill())
                 .spacing(10.)
+                .content(Content::Flex)
                 .cross_align(Alignment::Center)
                 .child(strong(account.name.clone(), 12.5, p.text))
                 .child(dim(
@@ -1118,15 +1124,15 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     panel(p).width(Size::fill())
                         .child(strong("Performance", 14., p.text))
                         .child(
-                            rect().horizontal().width(Size::fill()).spacing(12.).cross_align(Alignment::Center)
+                            rect().horizontal().width(Size::fill()).spacing(12.).content(Content::Flex).cross_align(Alignment::Center)
                                 .child(rect().width(Size::px(170.)).child(dim("Game memory (MiB)", 11.5, p)))
                                 .child(rect().width(Size::px(150.)).child(Input::new(memory).placeholder("4096")))
                                 .child(dim("Recommended values never exceed 60% of detected RAM.", 10.5, p)),
                         )
                         .child(
-                            rect().horizontal().width(Size::fill()).spacing(12.).cross_align(Alignment::Center)
+                            rect().horizontal().width(Size::fill()).spacing(12.).content(Content::Flex).cross_align(Alignment::Center)
                                 .child(rect().width(Size::px(170.)).child(dim("Custom Java executable", 11.5, p)))
-                                .child(rect().width(Size::flex(1.)).child(Input::new(java).placeholder("Managed automatically"))),
+                                .child(rect().width(Size::flex(1.)).child(Input::new(java).expanded().placeholder("Managed automatically"))),
                         )
                         .child(
                             rect().horizontal().spacing(16.).cross_align(Alignment::Center)
@@ -1156,10 +1162,11 @@ pub fn settings(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                     panel(p).width(Size::fill())
                         .child(strong("Accounts", 14., p.text))
                         .child(
-                            rect().horizontal().width(Size::fill()).spacing(12.).cross_align(Alignment::Center)
+                            rect().horizontal().width(Size::fill()).spacing(12.).content(Content::Flex).cross_align(Alignment::Center)
                                 .child(rect().width(Size::px(170.)).child(dim("Microsoft client ID", 11.5, p)))
                                 .child(rect().width(Size::flex(1.)).child(
                                     Input::new(microsoft_client_id)
+                                        .expanded()
                                         .placeholder("Required Azure public-client application GUID"),
                                 )),
                         )
@@ -1686,6 +1693,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .horizontal()
                         .width(Size::fill())
                         .cross_align(Alignment::Center)
+                        .content(Content::Flex)
                         .child(strong(
                             format!("Setup · step {} of {}", step + 1, onboarding::STEPS),
                             11.5,

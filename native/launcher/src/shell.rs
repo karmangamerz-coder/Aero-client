@@ -73,6 +73,7 @@ pub fn top_bar(_ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Rect {
 
     rect()
         .horizontal()
+        .content(Content::Flex)
         .width(Size::fill())
         .height(Size::px(TOP_BAR_HEIGHT))
         .padding((0., 14.))
@@ -123,6 +124,7 @@ pub fn status_strip(
     };
     let mut bar = rect()
         .horizontal()
+        .content(Content::Flex)
         .width(Size::fill())
         .height(Size::px(STATUS_HEIGHT))
         .padding((0., 14.))
