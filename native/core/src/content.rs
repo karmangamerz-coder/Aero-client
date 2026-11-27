@@ -80,7 +80,7 @@ pub async fn discover(
     if !version.is_empty() {
         facets.push(vec![format!("versions:{version}")]);
     }
-    if ["fabric", "forge"].contains(&loader) {
+    if ["fabric", "forge", "neoforge", "quilt"].contains(&loader) {
         facets.push(vec![format!("categories:{loader}")]);
     }
     ensure!(
