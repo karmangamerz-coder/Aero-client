@@ -1397,7 +1397,7 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                             .map(|a| format!("Signed in as {}.", a.name))
                             .unwrap_or_else(|| "Not signed in.".into())
                     } else {
-                        s.signin_state.clone()
+                        "Sign-in progress or failure is shown above this step.".into()
                     },
                     11.,
                     p,
@@ -1684,7 +1684,8 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
     // A flexible ScrollView keeps its content's intrinsic height in Freya and can
     // push the navigation row below a short window. Reserve the header, footer,
     // panel padding and gaps explicitly; long steps scroll inside this viewport.
-    let wizard_body_height = (ui.window_height - 210.).clamp(300., 780.);
+    let auth_notice_height = if s.signin_state.is_empty() { 0. } else { 124. };
+    let wizard_body_height = (ui.window_height - 210. - auth_notice_height).clamp(160., 780.);
     rect()
         .expanded()
         .padding((16., 20.))
@@ -1709,23 +1710,19 @@ pub fn wizard(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                         .child(rect().width(Size::flex(1.)))
                         .child(step_dots(step, p)),
                 )
+                .maybe(!s.signin_state.is_empty(), |r| {
+                    r.child(crate::shell::auth_notice(s, p))
+                })
                 .child(
                     ScrollView::new()
                         .width(Size::fill())
                         .height(Size::px(wizard_body_height))
                         .child(content),
                 )
-                .maybe(!s.message.is_empty() && s.message != "Ready.", |r| {
-                    r.child(dim(
-                        if s.signin_state.is_empty() {
-                            s.message.clone()
-                        } else {
-                            "Sign-in status is shown in the account step.".into()
-                        },
-                        10.5,
-                        p,
-                    ))
-                })
+                .maybe(
+                    s.signin_state.is_empty() && !s.message.is_empty() && s.message != "Ready.",
+                    |r| r.child(dim(s.message.clone(), 10.5, p)),
+                )
                 .child(hairline(p))
                 .child(nav),
         )

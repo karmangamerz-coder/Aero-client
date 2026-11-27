@@ -203,6 +203,6 @@ pub fn auth_notice(s: &Snapshot, p: Palette) -> Rect {
         .child(dim(if s.authenticating {
             "Keep Aero open. Your account appears only after Minecraft verification succeeds."
         } else {
-            "Retry from the account menu. Registration approval errors require approval for Aero's own client ID; browser authorization alone is insufficient."
+            "Retry with Sign in with Microsoft. Registration errors require checking approval for Aero's own client ID; browser authorization alone is insufficient."
         }, 11., p))
 }

@@ -320,6 +320,12 @@ impl Backend {
                         .await;
                         match result {
                             Ok(account) => {
+                                // Publish the verified account before optional skin downloads.
+                                state.send_modify(|s| {
+                                    s.authenticating = false;
+                                    s.signin_state.clear();
+                                    s.message = format!("Signed in as {}.", account.name);
+                                });
                                 let composed = character_for_client(&account).await;
                                 let head = head_for_client(&account).await;
                                 state.send_modify(|s| {
@@ -332,12 +338,12 @@ impl Backend {
                             }
                             Err(error) => {
                                 let message = error.to_string();
-                                append_launcher_log("Microsoft sign-in", &message).await;
                                 state.send_modify(|s| {
                                     s.authenticating = false;
                                     s.signin_state = message.clone();
-                                    s.message = message;
+                                    s.message = message.clone();
                                 });
+                                append_launcher_log("Microsoft sign-in", &message).await;
                             }
                         }
                     }

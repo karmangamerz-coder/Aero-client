@@ -78,5 +78,6 @@ hardware benchmark or signed installer was tested when the project lacks those r
 - [x] Required once-only setup, persisted completion and no Skip/defer action.
 - [x] Modrinth default/filter correction and Vanilla mod-install guard.
 - [x] Explicit distinction between OAuth authorization and verified Minecraft sign-in.
+- [x] Sign-in result panel remains visible outside setup's scrolling content on every step.
 - [ ] Resolve Minecraft Services application rejection and verify owning-account login.
 - [ ] Finish full-window/multi-DPI visual QA of the revised interface.

@@ -11,6 +11,9 @@ This project uses Semantic Versioning. Dates use ISO 8601.
   sign-in. A persistent notice shows pending verification and failures throughout the launcher.
 
 ### Fixed
+- Setup shows sign-in progress/failure in a persistent panel outside its scroll area on
+  every step, with space reserved for navigation. Verified accounts appear before optional
+  skin downloads; diagnostic disk writes no longer delay displaying sign-in failures.
 - Modrinth project details no longer filter releases by the nonexistent "vanilla" loader.
 - Discovery starts with all versions/loaders instead of inheriting setup filters.
 - Opening Discover loads projects; search errors and the installation target are visible.

@@ -25,6 +25,10 @@ aligned accordingly; the existing published v2.0.0 tag and artifacts have not be
   navigation and surfaces empty results/errors and the selected installation destination.
 - OAuth callback no longer implies full success. Generation-guarded verification progress
   and persistent in-app failures explain why an account has not been saved.
+  The notice also appears outside the setup scroll area on every step; its height is reserved
+  before laying out the body. Completion is published before optional skin downloads and
+  failures before diagnostic disk writes. A subsequent attempt in the isolated preview's
+  data directory again logged registration rejection, not successful sign-in.
 - Local user log reported Minecraft registration rejection after OAuth. This is an external
   authorization gate, not evidence of successful login. Never bypass it or borrow an ID.
 - Local formatting can run; local tests cannot link without MSVC. New regression tests and
