@@ -181,21 +181,8 @@ async fn minecraft_chain(client: &reqwest::Client, ms: &MsTokens) -> Result<(Acc
         status.is_success(),
         "Cannot verify Minecraft ownership (HTTP {status})"
     );
-    let owns_minecraft = value["items"]
-        .as_array()
-        .map(|items| {
-            items.iter().any(|item| {
-                matches!(
-                    item["name"].as_str().unwrap_or(""),
-                    "product_minecraft" | "game_minecraft"
-                )
-            })
-        })
-        .unwrap_or(false);
-    ensure!(
-        owns_minecraft,
-        "This Microsoft account does not own Minecraft: Java Edition. Aero never bypasses ownership checks."
-    );
+    verify_ownership(&value)?;
+    let owns_minecraft = true;
 
     let profile = client
         .get("https://api.minecraftservices.com/minecraft/profile")
@@ -405,6 +392,19 @@ fn chain_error<E: std::error::Error>(
 mod security_tests {
     use super::*;
     #[test]
+    fn ownership_requires_a_java_entitlement() {
+        for value in [
+            serde_json::json!({}),
+            serde_json::json!({"items":[]}),
+            serde_json::json!({"items":[{"name":"demo"}]}),
+        ] {
+            assert!(verify_ownership(&value).is_err());
+        }
+        for name in ["product_minecraft", "game_minecraft"] {
+            assert!(verify_ownership(&serde_json::json!({"items":[{"name":name}]})).is_ok());
+        }
+    }
+    #[test]
     fn family_and_application_errors_are_actionable_and_safe() {
         use minecraft_msa_auth::MinecraftAuthorizationError as Error;
         assert!(
@@ -448,4 +448,22 @@ mod security_tests {
                 .contains("different application")
         );
     }
+}
+fn verify_ownership(value: &serde_json::Value) -> Result<()> {
+    let owns_minecraft = value["items"]
+        .as_array()
+        .map(|items| {
+            items.iter().any(|item| {
+                matches!(
+                    item["name"].as_str().unwrap_or(""),
+                    "product_minecraft" | "game_minecraft"
+                )
+            })
+        })
+        .unwrap_or(false);
+    ensure!(
+        owns_minecraft,
+        "This Microsoft account does not own Minecraft: Java Edition. Aero never bypasses ownership checks."
+    );
+    Ok(())
 }

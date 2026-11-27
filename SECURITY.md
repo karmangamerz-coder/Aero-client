@@ -1,7 +1,8 @@
 # Security policy
 
-The latest 0.2.x source release receives fixes. Milestone 2 is an installation foundation,
-not a supported game-authentication implementation. No security guarantees are implied.
+The latest 2.0.x source release receives fixes. Live authentication still requires Aero's
+own registered, approved Microsoft Application ID; no successful owning-account test is
+claimed without evidence.
 
 When the public GitHub repository is available, use Security > Report a vulnerability
 (private vulnerability reporting). Maintainers must enable this before public release.
@@ -19,7 +20,14 @@ Never log tokens or pass refresh tokens on command lines. Authentication must fa
 closed when ownership cannot be established. Mods execute code and require explicit
 user choice; no silent remote code or module installation.
 
-CI uses read-only permissions except the dependency graph job. Release workflows
-produce artifacts without automatic publication. Store any future signing keys in
+CI uses read-only permissions except explicitly authorized tagged-release publication.
+Release workflows generate SHA-256 manifests and publish tagged artifacts. Store signing keys in
 protected CI secrets or external signing services, never in this repository. Rotate
 accidentally exposed secrets immediately; deleting a file does not revoke a secret.
+
+Authentication uses browser authorization-code PKCE with a short-lived loopback callback,
+random state, S256 and no client secret. Microsoft/Xbox family policy and Minecraft ownership
+checks fail closed. Refresh tokens use the OS vault with no plaintext fallback. Local logout
+deletes the selected credential; revoke Microsoft account consent to invalidate access
+across devices. Never include callback URLs, authorization codes, verifier/state values or
+credential-vault exports in a public report. See README.md and ADR 0012.

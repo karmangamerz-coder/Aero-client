@@ -86,12 +86,9 @@ fn callback(target: &str, expected_state: &str) -> Result<String> {
     use sha2::{Digest, Sha256};
     let actual = Sha256::digest(state.as_bytes());
     let expected = Sha256::digest(expected_state.as_bytes());
-    let difference = actual
-        .iter()
-        .zip(expected.iter())
-        .fold(0u8, |sum, (a, b)| sum | (a ^ b));
+    use subtle::ConstantTimeEq;
     ensure!(
-        difference == 0,
+        bool::from(actual.as_slice().ct_eq(expected.as_slice())),
         "Sign-in state did not match. Start sign-in again."
     );
     if let Some(error) = unique("error")? {

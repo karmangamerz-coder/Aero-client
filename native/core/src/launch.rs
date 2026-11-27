@@ -48,7 +48,10 @@ impl LaunchSpec {
                 filtered.push("<redacted>".to_owned());
                 continue;
             }
-            if arg == "--accessToken" || arg == "--clientId" || arg == "--auth-xuid" {
+            if matches!(
+                arg.as_str(),
+                "--accessToken" | "--clientId" | "--auth-xuid" | "--session"
+            ) {
                 filtered.push(arg.clone());
                 skip = true;
                 continue;
@@ -60,6 +63,33 @@ impl LaunchSpec {
             filtered.push(arg.clone());
         }
         filtered.join(" ")
+    }
+}
+
+#[cfg(test)]
+mod session_log_tests {
+    use super::*;
+    #[test]
+    fn legacy_and_modern_session_arguments_are_redacted_from_diagnostics() {
+        let spec = LaunchSpec {
+            program: "java".into(),
+            directory: ".".into(),
+            args: vec![
+                "--accessToken".into(),
+                "synthetic-token".into(),
+                "--session".into(),
+                "legacy-session".into(),
+            ],
+        };
+        assert!(spec.args.contains(&"synthetic-token".to_owned()));
+        for output in [spec.describe(), spec.command_line(), format!("{spec:?}")] {
+            assert!(!output.contains("synthetic-token"));
+            assert!(!output.contains("legacy-session"));
+        }
+        assert_eq!(
+            redact_line("output synthetic-token", &["synthetic-token".into()]),
+            "output <redacted>"
+        );
     }
 }
 

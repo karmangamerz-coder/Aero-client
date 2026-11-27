@@ -1,6 +1,6 @@
 # 0007: Authentication, token storage and game launching
 
-- Status: accepted (2026-11-21)
+- Status: historical; PKCE and credential storage superseded by [ADR 0012](0012-pkce-and-credential-vault.md), 2026-11-27
 - Applies to: `native/core/src/auth.rs`, `native/core/src/launch.rs`
 
 ## Context

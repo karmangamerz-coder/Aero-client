@@ -16,6 +16,12 @@ library is unchanged in behavior. The launcher now uses JavaFX instead of the M1
 view; SettingsStore/LauncherSettings remain compatible with existing preferences.
 
 ## UI and work ownership
+The native launcher uses a bounded Tokio command queue and Freya watch snapshots.
+PKCE callbacks run in cancellable tasks with generation-guarded completion messages.
+Account mutations and launch-time refresh serialize through an async mutex; credential-vault
+calls run on blocking workers. See ADR 0012 for the authentication and token lifecycle.
+
+The following JavaFX worker description applies only to the retained fallback launcher.
 `AeroApplication` owns the five navigation pages and presentation only. A single bounded,
 expiring worker serializes disk/network/hash/extraction/runtime-probe work; FX updates
 are dispatched and transfer progress is throttled. Downloads are bounded (maximum
@@ -53,11 +59,15 @@ shared/assets/            content-addressed asset index/objects
 instances/<uuid>/instance.json
 instances/<uuid>/installation/  source version/loader profiles, natives, plan
 instances/<uuid>/game/     independent saves/config/mods/resourcepacks/shaderpacks
+accounts.json             non-secret account metadata and deletion retry records
 ```
 
 Instance names never become filesystem paths. Schema and UUIDs are validated. Path
 traversal, Windows reserved names/streams and links escaping roots are rejected. Status
 records interrupted work without claiming it is ready. No instance deletion exists in M2.
+
+Native authentication stores refresh tokens in the operating system credential vault,
+scoped by data directory and Minecraft UUID. Access tokens never persist on disk.
 
 ## Content and release boundaries
 
