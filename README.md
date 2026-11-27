@@ -30,8 +30,8 @@ The v1 completion branch also includes:
 - Windows portable and NSIS installer pipelines, Linux/macOS checks, dependency audits and
   SHA-256 release manifests.
 
-Beta means that source and packaging are ready for community testing, not that unperformed
-live checks are being claimed. Real Microsoft sign-in/game launch, version-specific
+Published artifacts are available for testing; automated checks do not establish successful
+live account sign-in. Real Microsoft sign-in/game launch, version-specific
 Forge/Fabric in-game adapters, Modrinth modpack import, Windows code signing, multi-DPI
 visual QA and benchmark runs still require dedicated validation. See PROJECT_STATE.md.
 

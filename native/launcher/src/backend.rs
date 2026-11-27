@@ -686,13 +686,22 @@ async fn handle(
             auth::save_accounts(&installer.store.root, &accounts)
                 .await
                 .map_err(|e| format!("{e:#}"))?;
-            let fallback = full_character(&skin::Skin::fallback());
             let still_active = accounts.active_account().cloned();
+            let (body, head) = if let Some(account) = &still_active {
+                (
+                    character_for_client(account).await,
+                    head_for_client(account).await,
+                )
+            } else {
+                (
+                    full_character(&Skin::fallback()),
+                    Arc::new(skin::head(&Skin::fallback())),
+                )
+            };
             state.send_modify(|s| {
                 s.accounts = accounts;
-                if still_active.is_none() {
-                    s.skin = fallback;
-                }
+                s.skin = body;
+                s.head = head;
             });
             Ok("Account removed from this device.".into())
         }

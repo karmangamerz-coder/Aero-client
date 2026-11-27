@@ -20,7 +20,8 @@ hardware benchmark or signed installer was tested when the project lacks those r
 
 ## M3 / M3-S — authentication, launch and setup (implemented)
 
-- [x] Microsoft device code, Xbox, XSTS, ownership, profile, skin and DPAPI account store.
+- [x] Microsoft authorization-code PKCE, Xbox, XSTS, ownership, profile and skin.
+- [x] OS credential-vault refresh storage, cancellation, multiple accounts, switching and logout.
 - [x] Aero-owned configurable public-client identity and automatic expired-token renewal.
 - [x] Verified launch arguments, supervised process, bounded logs and crash discovery.
 - [x] Resumable seven-step setup and safe Setup Later path.

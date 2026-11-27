@@ -99,4 +99,4 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" target/AeroClient-Setup.exe target/AeroClient-Portable.zip target/SHA256SUMS.txt --verify-tag --generate-notes
+        run: gh release create "${{ github.ref_name }}" target/AeroClient-Setup.exe target/AeroClient-Portable.zip target/SHA256SUMS.txt --verify-tag --notes-file docs/RELEASE_NOTES.md
