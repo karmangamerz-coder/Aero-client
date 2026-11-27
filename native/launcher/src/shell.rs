@@ -9,7 +9,7 @@ use crate::{
 };
 use freya::prelude::*;
 
-pub fn rail(ui: &Ui, p: Palette) -> Rect {
+pub fn rail(ui: &Ui, p: Palette, b: &Backend) -> Rect {
     let mut page = ui.page;
     let mut detail = ui.detail;
     let mut rail = rect()
@@ -30,6 +30,8 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
     rail = rail.child(hairline(p));
     for (index, (label, _)) in NAV.iter().enumerate() {
         let selected = page.read().eq(&index);
+        let backend = b.clone();
+        let ui = *ui;
         rail = rail.child(
             Button::new()
                 .theme_layout(
@@ -66,6 +68,16 @@ pub fn rail(ui: &Ui, p: Palette) -> Rect {
                 .on_press(move |_| {
                     page.set(index);
                     detail.set(String::new());
+                    if index == 2 {
+                        backend.send(Command::Discover(
+                            ui.query.read().clone(),
+                            ui.kind.read().clone(),
+                            ui.mod_version.read().clone(),
+                            ui.mod_loader.read().clone(),
+                            ui.mod_category.read().clone(),
+                            ui.mod_sort.read().clone(),
+                        ));
+                    }
                 }),
         );
     }

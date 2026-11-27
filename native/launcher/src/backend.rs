@@ -25,6 +25,7 @@ pub struct Snapshot {
     pub instances: Vec<Instance>,
     pub versions: Vec<String>,
     pub results: Vec<content::DiscoveryItem>,
+    pub discovery_status: String,
     pub project_detail: Option<content::ProjectDetail>,
     pub installed_content: Vec<content::InstalledProject>,
     pub settings: Settings,
@@ -54,6 +55,7 @@ impl Default for Snapshot {
             instances: vec![],
             versions: vec![],
             results: vec![],
+            discovery_status: "Open Discover to browse Modrinth.".into(),
             project_detail: None,
             installed_content: vec![],
             settings: Settings::default(),
@@ -570,6 +572,11 @@ async fn handle(
             Ok(String::new())
         }
         Command::Discover(query, kind, version, loader, category, sort) => {
+            state.send_modify(|s| {
+                s.results.clear();
+                s.project_detail = None;
+                s.discovery_status = "Searching Modrinth…".into();
+            });
             let results = content::discover(
                 &installer.store,
                 &installer.client,
@@ -582,9 +589,20 @@ async fn handle(
                 token,
             )
             .await
-            .map_err(|e| format!("Modrinth search failed: {e:#}"))?;
+            .map_err(|e| {
+                let message = format!("Modrinth search failed: {e:#}");
+                state.send_modify(|s| s.discovery_status = message.clone());
+                message
+            })?;
             let count = results.len();
-            state.send_modify(|s| s.results = results);
+            state.send_modify(|s| {
+                s.results = results;
+                s.discovery_status = if count == 0 {
+                    "No projects matched. Clear version, loader or category filters and retry.".into()
+                } else {
+                    format!("Showing {count} projects. Install checks the selected instance's exact version and loader.")
+                };
+            });
             Ok(format!("{count} compatible Modrinth projects shown."))
         }
         Command::LoadProject(project, version, loader) => {

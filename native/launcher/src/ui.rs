@@ -123,7 +123,7 @@ impl App for Aero {
                 .expanded()
                 .horizontal()
                 .content(Content::Flex)
-                .child(shell::rail(&ui, p))
+                .child(shell::rail(&ui, p, &backend))
                 .child(
                     rect()
                         .width(Size::flex(1.))

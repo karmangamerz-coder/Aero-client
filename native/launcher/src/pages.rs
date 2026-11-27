@@ -972,6 +972,8 @@ pub fn discover(ui: &Ui, s: &Snapshot, p: Palette, b: &Backend) -> Element {
                 )
                 .maybe(detail.is_some(), |r| r.child(detail.unwrap()))
                 .child(strong("Search results", 14., p.text))
+                .child(hint(p, s.discovery_status.clone()))
+                .child(dim(chosen(s).map(|i| format!("Install destination: {} · {} · {}", i.name, i.version, i.loader)).unwrap_or_else(|| "Select an instance to install content. Mods require Fabric or Forge.".into()), 11., p))
                 .child(rect().width(Size::fill()).spacing(8.).children(results))
                 .maybe(s.results.is_empty(), |r| {
                     r.child(hint(p, if s.busy { "Loading Modrinth…" } else { "No projects shown. Search Modrinth, or clear the version, loader and category filters and try again." }))
