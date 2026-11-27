@@ -2,7 +2,7 @@
 
 ## Current release
 
-Version: 2.1.0
+Version: 2.0.0
 Primary platform: Windows 10/11 x64
 Original-source license: GPL-3.0-only
 
@@ -10,7 +10,10 @@ The native Rust/Freya launcher is primary; the Java client and JavaFX fallback r
 independently buildable. M4–M9 contain the implemented foundations listed in ROADMAP.md;
 a source implementation does not imply all live game adapters or benchmarks are finished.
 
-## 2.1 refinement
+## 2.0.0 refinement
+
+The owner requested keeping this update at version 2.0.0. Source/package metadata is
+aligned accordingly; the existing published v2.0.0 tag and artifacts have not been replaced.
 
 - Silver glass chrome, labeled sidebar, original vector background and blue inset Play panel.
   Existing Dark/Lite preferences remain respected.
@@ -46,7 +49,7 @@ a source implementation does not imply all live game adapters or benchmarks are 
   safe diagnostic formatting and redaction of known tokens from captured game output.
 - README.md, PRIVACY.md, SECURITY.md and ADR 0012 describe registration, approval,
   storage/logout semantics, upgrade behavior and security boundaries.
-- Cargo/Gradle, Windows installer and user agent align at 2.1.0. Auth library license texts
+- Cargo/Gradle, Windows installer and user agent align at 2.0.0. Auth library license texts
   ship under third-party/auth. Tagged builds publish installer/portable/SHA-256 artifacts.
 
 ## Verification

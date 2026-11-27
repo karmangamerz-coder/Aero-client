@@ -2,7 +2,7 @@
 
 This project uses Semantic Versioning. Dates use ISO 8601.
 
-## 2.1.0 — 2026-11-27
+## Unreleased refinements for 2.0.0 — 2026-11-27
 
 ### Changed
 - Silver Vista-inspired chrome, labeled navigation, original vector backdrop and blue Play panel.

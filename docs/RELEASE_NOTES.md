@@ -1,4 +1,4 @@
-# Aero Client 2.1.0
+# Aero Client 2.0.0
 
 Silver Vista-inspired refinement: labeled navigation, silver glass surfaces, original static
 vector folds and a blue inset Play panel. Existing appearance preferences remain respected.

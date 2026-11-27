@@ -76,7 +76,7 @@ jobs:
             if ($attempt -lt 3) { Start-Sleep -Seconds (15 * $attempt) }
           }
           if (-not $installed) { throw 'NSIS installation failed after three attempts' }
-          & 'C:\Program Files (x86)\NSIS\makensis.exe' /DVERSION=2.1.0 /DAPP_SOURCE="$((Resolve-Path target/portable).Path)" packaging/windows/AeroClient.nsi
+          & 'C:\Program Files (x86)\NSIS\makensis.exe' /DVERSION=2.0.0 /DAPP_SOURCE="$((Resolve-Path target/portable).Path)" packaging/windows/AeroClient.nsi
       - name: Archive and checksum release files
         shell: pwsh
         run: |

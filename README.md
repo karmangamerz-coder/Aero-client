@@ -10,7 +10,7 @@ affiliated with Mojang or Microsoft. It does not contain Minecraft binaries. Min
 downloaded from official distribution services after the player signs in with a Microsoft
 account that owns Java Edition.
 
-## 2.1.0
+## 2.0.0
 
 This refinement adds silver Vista-inspired chrome, labeled navigation and a blue inset
 Play surface. First-launch setup is required once, resumes when interrupted and has no

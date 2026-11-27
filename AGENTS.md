@@ -32,7 +32,7 @@ never sacrifice correctness or security to reduce cost.
   again once completed, and be re-runnable from Settings. No Skip/defer action; browsing without sign-in is allowed,
   but every setup step must be visited and game launch still requires ownership.
 
-## Permanent visual system (2.1 refinement)
+## Permanent visual system (2.0.0 refinement)
 - Follow the user's silver Vista reference with original assets: neutral silver glass,
   an Explorer-style labeled sidebar, blue inset Play panel, subtle static folds, Segoe UI,
   thin gray rims and restrained gloss. Dark and Lite presets remain available.

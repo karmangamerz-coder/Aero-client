@@ -24,7 +24,7 @@ hardware benchmark or signed installer was tested when the project lacks those r
 - [x] OS credential-vault refresh storage, cancellation, multiple accounts, switching and logout.
 - [x] Aero-owned configurable public-client identity and automatic expired-token renewal.
 - [x] Verified launch arguments, supervised process, bounded logs and crash discovery.
-- [x] Resumable seven-step setup and safe Setup Later path.
+- [x] Resumable seven-step setup with persisted completion and no Skip/defer path.
 - [ ] Validate the full chain with an owning account and real 1.8.9/modern game sessions.
 
 ## M4 — instances and Modrinth (beta implementation)
@@ -72,7 +72,7 @@ hardware benchmark or signed installer was tested when the project lacks those r
 - [x] User-requested semantic-version update discovery; no silent replacement.
 - [ ] Code-sign a stable build and validate clean install, upgrade and uninstall on Windows.
 
-## 2.1 refinement
+## 2.0.0 refinement
 
 - [x] Silver Vista-inspired native UI with original assets and labeled navigation.
 - [x] Required once-only setup, persisted completion and no Skip/defer action.
